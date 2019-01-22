@@ -18,11 +18,26 @@ Worker::Worker() : Runner() {
 	allowTrain = true;
 	exitTrain = false;
 
+	/// get from master
+	typeDDeltaAny = MType::DDelta;
+	typeDDeltaAll = 128 + MType::DDelta;
+	workerLst = {}; // ??
+	//trainer.bindModel(&model);
+	factorDelta = 1.0;
+	nx = 0;
+	//iter = 0;
+	nUpdate = 0;
+	lastArchIter = 0;
+
 	trainer.bindModel(&model);
 
 	suOnline.reset();
 	suParam.reset();
 	suXlength.reset();
+
+	/// for DC
+	suDeltaAny.reset();
+	suDeltaAll.reset();
 }
 
 void Worker::init(const Option* opt, const size_t lid)
@@ -61,15 +76,17 @@ void Worker::bindDataset(const DataHolder* pdh)
 void Worker::run()
 {
 	LOG(INFO) << "register handlers";
-	registerHandlers();
-	startMsgLoop(logName+"-MSG");
+	registerHandlers();  // register message with function, function need to wrap up
+	startMsgLoop(logName+"-MSG"); // make a new thread to record messages
+
 	LOG(INFO) << "start";
 	DLOG(INFO) << "send online message";
 	sendOnline();
+
 	DLOG(INFO) << "waiting worker list";
 	waitWorkerList();
 	DLOG(INFO) << "send x length";
-	sendXLength();
+	sendXLength(); // x dimension
 	DLOG(INFO) << "waiting init parameter";
 	waitParameter();
 	DLOG(INFO) << "got init parameter";
@@ -109,6 +126,7 @@ Worker::callback_t Worker::localCBBinder(
 void Worker::syncInit()
 {
 	regDSPProcess(MType::DParameter, localCBBinder(&Worker::handleParameter));
+	regDSPProcess(MType::DDelta, localCBBinder(&Worker::handleDelta)); /// handle delta
 }
 
 void Worker::syncProcess()
@@ -125,18 +143,25 @@ void Worker::syncProcess()
 		stat.t_dlt_calc+= tmr.elapseSd();
 		VLOG_EVERY_N(ln, 2) << "  send delta";
 		tmr.restart();
-		sendDelta(bfDelta);
+		
+///		sendDelta(bfDelta);
+		broadcastDelta(bfDelta);
+
 		if(exitTrain==true){
 			break;
 		}
 		VLOG_EVERY_N(ln, 2) << "  wait for new parameter";
-		waitParameter();
+///		waitParameter();
+		waitDeltaFromAll();
+
 		if(exitTrain==true){
 			break;
 		}
 		stat.t_par_wait += tmr.elapseSd();
 		tmr.restart();
-		applyBufferParameter();
+		if(localID == 0)	/// send record to master only for worker 0
+			sendParameter(); /// update parameter to master
+///		applyBufferParameter();
 		stat.t_par_calc += tmr.elapseSd();
 		++iter;
 	}
@@ -324,6 +349,16 @@ void Worker::sendDelta(std::vector<double>& delta)
 	++stat.n_dlt_send;
 }
 
+void Worker::broadcastDelta(std::vector<double>& delta)
+{
+	// TODO: add staleness tolerance logic here
+	DVLOG(3) << "broadcast delta: " << delta;
+	//DVLOG_EVERY_N(ln, 1) << "n-send: " << iter << " un-cmt msg: " << net->pending_pkgs() << " cmt msg: " << net->stat_send_pkg;
+	///// for(int lid; lid < )
+	net->broadcast(MType::DDelta, delta);
+	++stat.n_dlt_send;
+}
+
 void Worker::bufferParameter(Parameter & p)
 {
 	lock_guard<mutex> lk(mParam);
@@ -451,4 +486,36 @@ void Worker::handleTerminate(const std::string & data, const RPCInfo & info)
 	pauseTrain(); // in case if the system is calculating delta
 	suParam.notify(); // in case if the system just calculated a delta (is waiting for new parameter)
 	sendReply(info);
+}
+
+//  how worker handle delta
+//
+void Worker::handleDelta(const std::string & data, const RPCInfo & info)
+{
+	auto delta = deserialize<vector<double>>(data);
+	int s = wm.nid2lid(info.source);
+	applyDelta(delta, s);
+///	rph.input(typeDDeltaAll, s);
+///	rph.input(typeDDeltaAny, s);
+	//sendReply(info);
+	++stat.n_dlt_recv;
+}
+
+void Worker::waitDeltaFromAll(){
+	suDeltaAll.wait();
+	suDeltaAll.reset();
+}
+
+void Worker::applyDelta(std::vector<double>& delta, const int source)
+{
+	DVLOG(3) << "apply delta from " << source << " : " << delta
+		<< "\nonto: " << model.getParameter().weights;
+	model.accumulateParameter(delta, factorDelta);
+}
+
+void Workder::sendParameter()
+{
+	DVLOG(3) << "send parameter to master with: " << model.getParameter().weights;
+	net->send(masterNID, MType::DParameter, model.getParameter().weights);
+	++stat.n_par_send;
 }

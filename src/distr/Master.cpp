@@ -116,9 +116,11 @@ void Master::syncProcess()
 			tl = t;
 		}
 		VLOG_EVERY_N(ln, 1)<<"Start iteration: "<<iter;
-		waitDeltaFromAll();
+///		waitDeltaFromAll();
+		waitParameter(); // wait one parameter update
+
 		VLOG_EVERY_N(ln, 2) << "  Broadcast new parameters";
-		broadcastParameter();
+///		broadcastParameter();
 		archiveProgress();
 		//waitParameterConfirmed();
 		++iter;
@@ -230,6 +232,8 @@ void Master::registerHandlers()
 	regDSPProcess(MType::CXLength, localCBBinder(&Master::handleXLength));
 	// regDSPProcess(MType::DDelta, localCBBinder(&Master::handleDelta)); // for sync and fsb
 	// regDSPProcess(MType::DDelta, localCBBinder(&Master::handleDeltaAsync)); // for async
+
+	regDSPProcess(MType::DParameter, localCBBinder(&Master::handleParameter));
 
 	addRPHEachSU(MType::COnline, suOnline);
 	addRPHEachSU(MType::CWorkers, suWorker);
@@ -429,4 +433,21 @@ void Master::handleDeltaTail(const std::string & data, const RPCInfo & info)
 	int s = wm.nid2lid(info.source);
 	applyDelta(delta, s);
 	++stat.n_dlt_recv;
+}
+
+void Master::handleParameter(const std::string & data, const RPCInfo & info)
+{
+	auto weights = deserialize<vector<double>>(data);
+	Parameter p;
+	p.set(move(weights));
+	bufferParameter(p);
+	suParam.notify();
+	//sendReply(info);
+	++stat.n_par_recv;
+}
+
+void Master::waitParameter()
+{
+	suParam.wait();
+	suParam.reset();
 }

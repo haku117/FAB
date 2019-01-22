@@ -74,4 +74,7 @@ private:
 	//std::mutex mTrain;
 	std::atomic<bool> allowTrain;
 	std::atomic<bool> exitTrain;
+
+	/// new sync for decentrialize
+	SyncUnit suDeltaAny, suDeltaAll;
 };
