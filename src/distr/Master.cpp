@@ -471,7 +471,8 @@ void Master::handleParameter(const std::string & data, const RPCInfo & info)
 	auto weights = deserialize<vector<double>>(data);
 	Parameter p;
 	p.set(move(weights));
-	bufferParameter(p);
+	DVLOG(3) << "apply parameter: " << p.weights;
+	model.setParameter(p);
 	suParam.notify();
 	//sendReply(info);
 	++stat.n_par_recv;

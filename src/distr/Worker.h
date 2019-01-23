@@ -2,6 +2,7 @@
 #include "Runner.h"
 #include "IDMapper.h"
 #include <atomic>
+#include <vector>
 #include <mutex>
 
 class Worker : public Runner{

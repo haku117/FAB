@@ -160,7 +160,7 @@ void Worker::dcSyncProcess()
 		}
 		VLOG_EVERY_N(ln, 2) << "  wait for new parameter";
 ///		waitParameter();
-		rph.input(suDeltaAll, localID);
+		rph.input(typeDDeltaAll, (int)localID);
 		waitDeltaFromAll();
 		applyDelta();
 
@@ -562,7 +562,7 @@ void Worker::accumulateDelta(std::vector<double>& delta, const int source)
 		bufferDelta = delta;
 	}
 	else {
-		for(int i = 0; i < *delta.length; i++)
+		for(int i = 0; i < delta.size(); i++)
 			bufferDelta[i] += delta[i];
 	}
 }
