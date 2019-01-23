@@ -153,6 +153,7 @@ void Worker::dcSyncProcess()
 		tmr.restart();
 		
 ///		sendDelta(bfDelta);
+		bufferDelta = bfDelta;
 		broadcastDelta(bfDelta);
 
 		if(exitTrain==true){
@@ -561,6 +562,7 @@ void Worker::accumulateDelta(std::vector<double>& delta, const int source)
 {
 	if(bufferDelta.empty()) {
 		bufferDelta = delta;
+		DVLOG(3) << " why bufferDelta is empty???????: ";
 	}
 	else {
 		for(int i = 0; i < delta.size(); i++)
