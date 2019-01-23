@@ -140,7 +140,7 @@ void Worker::dcSyncInit()
 
 void Worker::dcSyncProcess()
 {	
-	while(!exitTrain){
+	while(!exitTrain && iter <= opt->tcIter){
 		if(allowTrain.load() == false){
 			sleep();
 			continue;
@@ -151,29 +151,21 @@ void Worker::dcSyncProcess()
 		updatePointer(localBatchSize);
 		stat.t_dlt_calc+= tmr.elapseSd();
 		VLOG_EVERY_N(ln, 2) << "  send delta";
+
 		tmr.restart();
-		
-///		sendDelta(bfDelta);
-		bufferDelta = bfDelta;
 		broadcastDelta(bfDelta);
-
-		if(exitTrain==true){
-			break;
-		}
-		VLOG_EVERY_N(ln, 2) << "  DC: wait for delta from all other workers";
-///		waitParameter();
+		bufferDelta = bfDelta;
 		rph.input(typeDDeltaAll, (int)localID);
-		waitDeltaFromAll();
-		applyDelta();
 
-		if(exitTrain==true){
-			break;
-		}
+		VLOG_EVERY_N(ln, 2) << "  DC: wait for delta from all other workers";
+		waitDeltaFromAll();
 		stat.t_par_wait += tmr.elapseSd();
+
 		tmr.restart();
+		applyDelta();
 		if(localID == 0)	/// send record to master only for worker 0
 			sendParameter2M(); /// update parameter to master
-///		applyBufferParameter();
+
 		stat.t_par_calc += tmr.elapseSd();
 		++iter;
 	}
@@ -456,7 +448,8 @@ void Worker::resumeTrain()
 	allowTrain = true;
 }
 
-void Worker::handleReply(const std::string& data, const RPCInfo& info) {
+void Worker::handleReply(const std::string& data, const RPCInfo& info) 
+{
 	int type = deserialize<int>(data);
 	pair<bool, int> s = wm.nidTrans(info.source);
 	DVLOG(3) << "get reply from " << (s.first ? "W" : "M") << s.second << " type " << type;
@@ -554,7 +547,8 @@ void Worker::handleDelta(const std::string & data, const RPCInfo & info)
 	++stat.n_dlt_recv;
 }
 
-void Worker::waitDeltaFromAll(){
+void Worker::waitDeltaFromAll()
+{
 	suDeltaAll.wait();
 	suDeltaAll.reset();
 }

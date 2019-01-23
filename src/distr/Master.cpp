@@ -107,7 +107,7 @@ Master::callback_t Master::localCBBinder(
 
 void Master::dcInit()
 {
-	regDSPProcess(MType::DDelta, localCBBinder(&Master::handleDelta));
+///	regDSPProcess(MType::DDelta, localCBBinder(&Master::handleDelta));
 }
 
 void Master::dcProcess()
@@ -123,7 +123,7 @@ void Master::dcProcess()
 ///		waitDeltaFromAll();
 		waitParameter(); // wait one parameter update
 
-		VLOG_EVERY_N(ln, 2) << "  Broadcast new parameters";
+		VLOG_EVERY_N(ln, 2) << "  DC: receive new parameters";
 ///		broadcastParameter();
 		archiveProgress();
 		//waitParameterConfirmed();
