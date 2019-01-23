@@ -22,6 +22,8 @@ private:
 	void fsbProcess();
 	void fabInit();
 	void fabProcess();
+	void dcSyncInit();
+	void dcSyncProcess();
 	//void generalProcess();
 
 	void updatePointer(const size_t used);
@@ -51,6 +53,7 @@ public:
 	void handleContinue(const std::string& data, const RPCInfo& info);
 	void handleTerminate(const std::string& data, const RPCInfo& info);
 		
+	void broadcastDelta(std::vector<double>& delta);
 	void waitDeltaFromAll();
 	void accumulateDelta(std::vector<double>& delta, const int source);
 	void applyDelta();
@@ -67,6 +70,16 @@ private:
 	IDMapper wm; // worker mapper
 	SyncUnit suOnline;
 	SyncUnit suXlength;
+
+	int typeDDeltaAny, typeDDeltaAll;
+	//workerLst = {}; // ??
+	//trainer.bindModel(&model);
+	double factorDelta;
+	size_t nx;
+	//iter = 0;
+	size_t nUpdate;
+	size_t lastArchIter;
+	vector<double>& bufferDelta;
 	
 	bool hasNewParam;
 	std::mutex mParam;

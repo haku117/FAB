@@ -21,7 +21,7 @@ Worker::Worker() : Runner() {
 	/// get from master
 	typeDDeltaAny = MType::DDelta;
 	typeDDeltaAll = 128 + MType::DDelta;
-	workerLst = {}; // ??
+	//workerLst = {}; // ??
 	//trainer.bindModel(&model);
 	factorDelta = 1.0;
 	nx = 0;
@@ -162,7 +162,7 @@ void Worker::dcSyncProcess()
 ///		waitParameter();
 		rph.input(suDeltaAll, localID);
 		waitDeltaFromAll();
-		applyBufferDelta();
+		applyDelta();
 
 		if(exitTrain==true){
 			break;
@@ -562,7 +562,7 @@ void Worker::accumulateDelta(std::vector<double>& delta, const int source)
 		bufferDelta = delta;
 	}
 	else {
-		for(int i = 0; i < delta.length; i++)
+		for(int i = 0; i < *delta.length; i++)
 			bufferDelta[i] += delta[i];
 	}
 }
@@ -575,7 +575,7 @@ void Worker::applyDelta()
 	bufferDelta = NULL;
 }
 
-void Workder::sendParameter2M()
+void Worker::sendParameter2M()
 {
 	DVLOG(3) << "send parameter to master with: " << model.getParameter().weights;
 	net->send(masterNID, MType::DParameter, model.getParameter().weights);
