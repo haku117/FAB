@@ -130,6 +130,7 @@ Worker::callback_t Worker::localCBBinder(
 
 void Worker::dcSyncInit()
 {
+	factorDelta = 1.0 / nWorker;
 	regDSPProcess(MType::DParameter, localCBBinder(&Worker::handleParameter));
 	regDSPProcess(MType::DDelta, localCBBinder(&Worker::handleDelta)); /// handle delta
 
@@ -574,7 +575,7 @@ void Worker::applyDelta()
 {
 	DVLOG(3) << "apply buffered delta : " << bufferDelta
 		<< "\nonto: " << model.getParameter().weights;
-	model.accumulateParameter(bufferDelta);
+	model.accumulateParameter(bufferDelta, factorDelta);
 	bufferDelta.clear();
 }
 
