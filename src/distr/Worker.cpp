@@ -28,7 +28,7 @@ Worker::Worker() : Runner() {
 	//iter = 0;
 	nUpdate = 0;
 	lastArchIter = 0;
-	bufferDelta = NULL;
+	//bufferDelta = NULL;
 
 	trainer.bindModel(&model);
 
@@ -559,7 +559,7 @@ void Worker::waitDeltaFromAll(){
 
 void Worker::accumulateDelta(std::vector<double>& delta, const int source)
 {
-	if(bufferDelta == NULL) {
+	if(bufferDelta.empty()) {
 		bufferDelta = delta;
 	}
 	else {
@@ -573,7 +573,7 @@ void Worker::applyDelta()
 //	DVLOG(3) << "apply delta from " << source << " : " << delta
 //		<< "\nonto: " << model.getParameter().weights;
 	model.accumulateParameter(bufferDelta);
-	bufferDelta = NULL;
+	bufferDelta.clear();
 }
 
 void Worker::sendParameter2M()
