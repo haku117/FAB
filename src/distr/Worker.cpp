@@ -570,8 +570,8 @@ void Worker::accumulateDelta(std::vector<double>& delta, const int source)
 
 void Worker::applyDelta()
 {
-//	DVLOG(3) << "apply delta from " << source << " : " << delta
-//		<< "\nonto: " << model.getParameter().weights;
+	DVLOG(3) << "apply buffered delta : " << bufferDelta
+		<< "\nonto: " << model.getParameter().weights;
 	model.accumulateParameter(bufferDelta);
 	bufferDelta.clear();
 }
