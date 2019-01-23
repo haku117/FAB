@@ -80,7 +80,7 @@ private:
 	//iter = 0;
 	size_t nUpdate;
 	size_t lastArchIter;
-	vector<double>& bufferDelta;
+	std::vector<double> bufferDelta;
 	
 	bool hasNewParam;
 	std::mutex mParam;

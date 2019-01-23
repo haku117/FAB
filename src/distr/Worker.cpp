@@ -158,7 +158,7 @@ void Worker::dcSyncProcess()
 		if(exitTrain==true){
 			break;
 		}
-		VLOG_EVERY_N(ln, 2) << "  wait for new parameter";
+		VLOG_EVERY_N(ln, 2) << "  DC: wait for delta from all other workers";
 ///		waitParameter();
 		rph.input(typeDDeltaAll, (int)localID);
 		waitDeltaFromAll();
@@ -543,6 +543,7 @@ void Worker::handleDelta(const std::string & data, const RPCInfo & info)
 {
 	auto delta = deserialize<vector<double>>(data);
 	int s = wm.nid2lid(info.source);
+	rph.input(typeDDeltaAll, s);
 	accumulateDelta(delta, s);
 ///	applyDelta(delta, s);
 ///	rph.input(typeDDeltaAll, s);
