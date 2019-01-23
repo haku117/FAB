@@ -41,7 +41,7 @@ private:
 
 // singal
 public:
-	//void handleDelta(const std::string& data, const RPCInfo& info);
+	void handleDelta(const std::string& data, const RPCInfo& info);
 	void handleReply(const std::string& data, const RPCInfo& info);
 	void handleWorkerList(const std::string& data, const RPCInfo& info);
 	void handleParameter(const std::string& data, const RPCInfo& info);
@@ -51,6 +51,11 @@ public:
 	void handleContinue(const std::string& data, const RPCInfo& info);
 	void handleTerminate(const std::string& data, const RPCInfo& info);
 		
+	void waitDeltaFromAll();
+	void accumulateDelta(std::vector<double>& delta, const int source);
+	void applyDelta();
+	void sendParameter2M();
+
 
 private:
 	size_t dataPointer;

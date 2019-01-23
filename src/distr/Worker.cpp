@@ -28,6 +28,7 @@ Worker::Worker() : Runner() {
 	//iter = 0;
 	nUpdate = 0;
 	lastArchIter = 0;
+	bufferDelta = NULL;
 
 	trainer.bindModel(&model);
 
@@ -58,6 +59,8 @@ void Worker::init(const Option* opt, const size_t lid)
 		fsbInit();
 	} else if(opt->mode == "fab"){
 		fabInit();
+	} else if(opt->mode == "dcsync"){
+		dcSyncInit();
 	}
 }
 
@@ -109,6 +112,8 @@ void Worker::run()
 		fsbProcess();
 	} else if(opt->mode == "fab"){
 		fabProcess();
+	} else if(opt->mode == "dcsync"){
+		dcSyncProcess();
 	}
 
 	DLOG(INFO) << "finish training";
@@ -123,14 +128,17 @@ Worker::callback_t Worker::localCBBinder(
 	return bind(fp, this, placeholders::_1, placeholders::_2);
 }
 
-void Worker::syncInit()
+void Worker::dcSyncInit()
 {
 	regDSPProcess(MType::DParameter, localCBBinder(&Worker::handleParameter));
 	regDSPProcess(MType::DDelta, localCBBinder(&Worker::handleDelta)); /// handle delta
+
+	addRPHAnySU(typeDDeltaAny, suDeltaAny);
+	addRPHEachSU(typeDDeltaAll, suDeltaAll);
 }
 
-void Worker::syncProcess()
-{
+void Worker::dcSyncProcess()
+{	
 	while(!exitTrain){
 		if(allowTrain.load() == false){
 			sleep();
@@ -152,7 +160,9 @@ void Worker::syncProcess()
 		}
 		VLOG_EVERY_N(ln, 2) << "  wait for new parameter";
 ///		waitParameter();
+		rph.input(suDeltaAll, localID);
 		waitDeltaFromAll();
+		applyBufferDelta();
 
 		if(exitTrain==true){
 			break;
@@ -160,8 +170,47 @@ void Worker::syncProcess()
 		stat.t_par_wait += tmr.elapseSd();
 		tmr.restart();
 		if(localID == 0)	/// send record to master only for worker 0
-			sendParameter(); /// update parameter to master
+			sendParameter2M(); /// update parameter to master
 ///		applyBufferParameter();
+		stat.t_par_calc += tmr.elapseSd();
+		++iter;
+	}
+}
+
+void Worker::syncInit()
+{
+	regDSPProcess(MType::DParameter, localCBBinder(&Worker::handleParameter));
+}
+
+void Worker::syncProcess()
+{
+	while(!exitTrain){
+		if(allowTrain.load() == false){
+			sleep();
+			continue;
+		}
+		VLOG_EVERY_N(ln, 1) << "Iteration " << iter << ": calculate delta";
+		Timer tmr;
+		bfDelta = trainer.batchDelta(dataPointer, localBatchSize, true);
+		updatePointer(localBatchSize);
+		stat.t_dlt_calc+= tmr.elapseSd();
+		VLOG_EVERY_N(ln, 2) << "  send delta";
+		tmr.restart();
+		
+		sendDelta(bfDelta);
+
+		if(exitTrain==true){
+			break;
+		}
+		VLOG_EVERY_N(ln, 2) << "  wait for new parameter";
+		waitParameter();
+
+		if(exitTrain==true){
+			break;
+		}
+		stat.t_par_wait += tmr.elapseSd();
+		tmr.restart();
+		applyBufferParameter();
 		stat.t_par_calc += tmr.elapseSd();
 		++iter;
 	}
@@ -494,7 +543,8 @@ void Worker::handleDelta(const std::string & data, const RPCInfo & info)
 {
 	auto delta = deserialize<vector<double>>(data);
 	int s = wm.nid2lid(info.source);
-	applyDelta(delta, s);
+	accumulateDelta(delta, s);
+///	applyDelta(delta, s);
 ///	rph.input(typeDDeltaAll, s);
 ///	rph.input(typeDDeltaAny, s);
 	//sendReply(info);
@@ -506,14 +556,26 @@ void Worker::waitDeltaFromAll(){
 	suDeltaAll.reset();
 }
 
-void Worker::applyDelta(std::vector<double>& delta, const int source)
+void Worker::accumulateDelta(std::vector<double>& delta, const int source)
 {
-	DVLOG(3) << "apply delta from " << source << " : " << delta
-		<< "\nonto: " << model.getParameter().weights;
-	model.accumulateParameter(delta, factorDelta);
+	if(bufferDelta == NULL) {
+		bufferDelta = delta;
+	}
+	else {
+		for(int i = 0; i < delta.length; i++)
+			bufferDelta[i] += delta[i];
+	}
 }
 
-void Workder::sendParameter()
+void Worker::applyDelta()
+{
+//	DVLOG(3) << "apply delta from " << source << " : " << delta
+//		<< "\nonto: " << model.getParameter().weights;
+	model.accumulateParameter(bufferDelta);
+	bufferDelta = NULL;
+}
+
+void Workder::sendParameter2M()
 {
 	DVLOG(3) << "send parameter to master with: " << model.getParameter().weights;
 	net->send(masterNID, MType::DParameter, model.getParameter().weights);

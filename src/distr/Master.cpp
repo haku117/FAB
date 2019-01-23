@@ -44,6 +44,8 @@ void Master::init(const Option* opt, const size_t lid)
 		fsbInit();
 	} else if(opt->mode == "fab"){
 		fabInit();
+	} else if(opt->mode == "dcsync"){
+		dcInit();
 	}
 }
 
@@ -80,7 +82,10 @@ void Master::run()
 		fsbProcess();
 	} else if(opt->mode == "fab"){
 		fabProcess();
+	} else if(opt->mode == "dcsync"){
+		dcProcess();
 	}
+
 	double t = tmrTrain.elapseSd();
 	LOG(INFO) << "Finish training. Time cost: " << t << ". Iterations: " << iter
 		<< ". Average iteration time: " << t / iter;
@@ -100,6 +105,32 @@ Master::callback_t Master::localCBBinder(
 	return bind(fp, this, placeholders::_1, placeholders::_2);
 }
 
+void Master::dcInit()
+{
+	regDSPProcess(MType::DDelta, localCBBinder(&Master::handleDelta));
+}
+
+void Master::dcProcess()
+{
+	double tl = tmrTrain.elapseSd();
+	while(!terminateCheck()){
+		if(VLOG_IS_ON(2) && iter % 100 == 0){
+			double t = tmrTrain.elapseSd();
+			VLOG(2) << "  Average iteration time of recent 100 iterations: " << (t - tl) / 100;
+			tl = t;
+		}
+		VLOG_EVERY_N(ln, 1)<<"Start iteration: "<<iter;
+///		waitDeltaFromAll();
+		waitParameter(); // wait one parameter update
+
+		VLOG_EVERY_N(ln, 2) << "  Broadcast new parameters";
+///		broadcastParameter();
+		archiveProgress();
+		//waitParameterConfirmed();
+		++iter;
+	}
+}
+
 void Master::syncInit()
 {
 	factorDelta = 1.0 / nWorker;
@@ -116,11 +147,10 @@ void Master::syncProcess()
 			tl = t;
 		}
 		VLOG_EVERY_N(ln, 1)<<"Start iteration: "<<iter;
-///		waitDeltaFromAll();
-		waitParameter(); // wait one parameter update
+		waitDeltaFromAll();
 
 		VLOG_EVERY_N(ln, 2) << "  Broadcast new parameters";
-///		broadcastParameter();
+		broadcastParameter();
 		archiveProgress();
 		//waitParameterConfirmed();
 		++iter;
@@ -435,6 +465,7 @@ void Master::handleDeltaTail(const std::string & data, const RPCInfo & info)
 	++stat.n_dlt_recv;
 }
 
+/// update parameter from worker (DC)
 void Master::handleParameter(const std::string & data, const RPCInfo & info)
 {
 	auto weights = deserialize<vector<double>>(data);

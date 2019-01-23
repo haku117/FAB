@@ -50,6 +50,8 @@ public:
 	void waitDeltaFromAll(); // reset suDeltaAll
 	void gatherDelta();
 
+	void waitParameter(); // waitParameter from one worker
+
 // handler
 public:
 	void handleReply(const std::string& data, const RPCInfo& info);
