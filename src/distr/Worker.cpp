@@ -118,6 +118,7 @@ void Worker::run()
 
 	DLOG(INFO) << "finish training";
 	sendClosed();
+	finishStat();
 	showStat();
 	stopMsgLoop();
 }
@@ -448,9 +449,10 @@ void Worker::resumeTrain()
 	allowTrain = true;
 }
 
-void Worker::handleReply(const std::string& data, const RPCInfo& info) 
-{
+void Worker::handleReply(const std::string& data, const RPCInfo& info) {
+	Timer tmr;
 	int type = deserialize<int>(data);
+	stat.t_data_deserial += tmr.elapseSd();
 	pair<bool, int> s = wm.nidTrans(info.source);
 	DVLOG(3) << "get reply from " << (s.first ? "W" : "M") << s.second << " type " << type;
 	/*static int ndr = 0;
@@ -464,7 +466,9 @@ void Worker::handleReply(const std::string& data, const RPCInfo& info)
 void Worker::handleWorkerList(const std::string & data, const RPCInfo & info)
 {
 	DLOG(INFO) << "receive worker list";
+	Timer tmr;
 	auto res = deserialize<vector<pair<int, int>>>(data);
+	stat.t_data_deserial += tmr.elapseSd();
 	for(auto& p : res){
 		DLOG(INFO)<<"register nid "<<p.first<<" with lid "<<p.second;
 		wm.registerID(p.first, p.second);
@@ -476,7 +480,9 @@ void Worker::handleWorkerList(const std::string & data, const RPCInfo & info)
 
 void Worker::handleParameter(const std::string & data, const RPCInfo & info)
 {
+	Timer tmr;
 	auto weights = deserialize<vector<double>>(data);
+	stat.t_data_deserial += tmr.elapseSd();
 	Parameter p;
 	p.set(move(weights));
 	bufferParameter(p);
@@ -487,7 +493,9 @@ void Worker::handleParameter(const std::string & data, const RPCInfo & info)
 
 void Worker::handleParameterFsb(const std::string & data, const RPCInfo & info)
 {
+	Timer tmr;
 	auto weights = deserialize<vector<double>>(data);
+	stat.t_data_deserial += tmr.elapseSd();
 	Parameter p;
 	p.set(move(weights));
 	bufferParameter(p);
@@ -500,7 +508,9 @@ void Worker::handleParameterFsb(const std::string & data, const RPCInfo & info)
 
 void Worker::handleParameterFab(const std::string & data, const RPCInfo & info)
 {
+	Timer tmr;
 	auto weights = deserialize<vector<double>>(data);
+	stat.t_data_deserial += tmr.elapseSd();
 	Parameter p;
 	p.set(move(weights));
 	bufferParameter(p);

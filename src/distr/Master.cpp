@@ -94,6 +94,7 @@ void Master::run()
 	regDSPProcess(MType::DDelta, localCBBinder(&Master::handleDeltaTail));
 	foutput.close();
 	DLOG(INFO) << "un-send: " << net->pending_pkgs() << ", un-recv: " << net->unpicked_pkgs();
+	finishStat();
 	showStat();
 	suAllClosed.wait();
 	stopMsgLoop();
@@ -390,21 +391,27 @@ void Master::gatherDelta()
 
 void Master::handleReply(const std::string & data, const RPCInfo & info)
 {
+	Timer tmr;
 	int type = deserialize<int>(data);
+	stat.t_data_deserial += tmr.elapseSd();
 	int source = wm.nid2lid(info.source);
 	rph.input(type, source);
 }
 
 void Master::handleOnline(const std::string & data, const RPCInfo & info)
 {
+	Timer tmr;
 	auto lid = deserialize<int>(data);
+	stat.t_data_deserial += tmr.elapseSd();
 	wm.registerID(info.source, lid);
 	rph.input(MType::COnline, lid);
 	sendReply(info);
 }
 
 void Master::handleXLength(const std::string& data, const RPCInfo& info){
+	Timer tmr;
 	size_t d = deserialize<size_t>(data);
+	stat.t_data_deserial += tmr.elapseSd();
 	int source = wm.nid2lid(info.source);
 	if(nx == 0){
 		nx = d;
@@ -417,7 +424,9 @@ void Master::handleXLength(const std::string& data, const RPCInfo& info){
 
 void Master::handleDelta(const std::string & data, const RPCInfo & info)
 {
+	Timer tmr;
 	auto delta = deserialize<vector<double>>(data);
+	stat.t_data_deserial += tmr.elapseSd();
 	int s = wm.nid2lid(info.source);
 	applyDelta(delta, s);
 	rph.input(typeDDeltaAll, s);
@@ -428,7 +437,9 @@ void Master::handleDelta(const std::string & data, const RPCInfo & info)
 
 void Master::handleDeltaAsync(const std::string & data, const RPCInfo & info)
 {
+	Timer tmr;
 	auto delta = deserialize<vector<double>>(data);
+	stat.t_data_deserial += tmr.elapseSd();
 	int s = wm.nid2lid(info.source);
 	applyDelta(delta, s);
 	++nUpdate;
@@ -442,7 +453,9 @@ void Master::handleDeltaAsync(const std::string & data, const RPCInfo & info)
 
 void Master::handleDeltaFab(const std::string & data, const RPCInfo & info)
 {
+	Timer tmr;
 	auto delta = deserialize<vector<double>>(data);
+	stat.t_data_deserial += tmr.elapseSd();
 	int s = wm.nid2lid(info.source);
 	applyDelta(delta, s);
 	++nUpdate;
@@ -459,7 +472,9 @@ void Master::handleDeltaFab(const std::string & data, const RPCInfo & info)
 
 void Master::handleDeltaTail(const std::string & data, const RPCInfo & info)
 {
+	Timer tmr;
 	auto delta = deserialize<vector<double>>(data);
+	stat.t_data_deserial += tmr.elapseSd();
 	int s = wm.nid2lid(info.source);
 	applyDelta(delta, s);
 	++stat.n_dlt_recv;

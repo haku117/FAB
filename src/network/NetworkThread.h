@@ -7,7 +7,7 @@
 #include <vector>
 #include "Task.h"
 #include "serial/serialization.h"
-
+#include "util/Timer.h"
 
 class NetworkImplMPI;
 
@@ -31,24 +31,26 @@ public:
 
 	// Enqueue the given request to pending buffer for transmission.
 	template <class T>
-	int send(int dst, int tag, const T& msg) {
+	void send(int dst, int tag, const T& msg) {
+		Timer tmr;
 		std::string s = serialize(msg);
-		return send(new Task(dst, tag, move(s)));
+		stat_time_serial += tmr.elapseSd();
+		send(new Task(dst, tag, move(s)));
+		stat_send_time += tmr.elapseSd();
 	}
-	int send(int dst, int tag, std::string&& msg) {
-		return send(new Task(dst, tag, move(msg)));
-	}
-	// Directly send the request bypassing the pending buffer.
-	template <class T>
-	int sendDirect(int dst, int tag, const T& msg) {
-		std::string s = serialize(msg);
-		return sendDirect(new Task(dst, tag, move(s)));
+	void send(int dst, int tag, std::string&& msg) {
+		Timer tmr;
+		send(new Task(dst, tag, move(msg)));
+		stat_send_time += tmr.elapseSd();
 	}
 
 	template <class T>
-	int broadcast(int tag, const T& msg) {
+	void broadcast(int tag, const T& msg) {
+		Timer tmr;
 		std::string s = serialize(msg);
-		return broadcast(new Task(Task::ANY_DST, tag, move(s)));
+		stat_time_serial += tmr.elapseSd();
+		broadcast(new Task(Task::ANY_DST, tag, move(s)));
+		stat_send_time += tmr.elapseSd();
 	}
 
 	void flush();
@@ -67,6 +69,8 @@ public:
 
 	uint64_t stat_send_pkg, stat_recv_pkg;
 	uint64_t stat_send_byte, stat_recv_byte;
+	double stat_send_time, stat_recv_time;
+	double stat_time_serial;
 
 private:
 	bool running;
@@ -76,7 +80,7 @@ private:
 
 	//buffer for request to be sent, double buffer design for performance
 	std::vector<std::pair<Task*, bool>> ps_buffer_[2]; // pair(task, broadcast)
-	std::vector<std::pair<Task*, bool>>* pending_sends_=&ps_buffer_[0];
+	std::vector<std::pair<Task*, bool>>* pending_sends_;
 	unsigned ps_idx_=0;
 	mutable std::recursive_mutex ps_lock;
 
@@ -84,10 +88,8 @@ private:
 	mutable std::recursive_mutex rec_lock;
 
 	// Enqueue the given request to pending buffer for transmission.
-	int send(Task *req);
-	// Directly (Physically) send the request.
-	int sendDirect(Task *req);
-	int broadcast(Task *req);
+	void send(Task *req);
+	void broadcast(Task *req);
 
 
 	bool checkReceiveQueue(std::string& data, TaskBase& info);
