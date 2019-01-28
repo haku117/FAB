@@ -2,6 +2,7 @@
 #include "Runner.h"
 #include "IDMapper.h"
 #include <atomic>
+#include <vector>
 #include <mutex>
 
 class Worker : public Runner{
@@ -22,6 +23,8 @@ private:
 	void fsbProcess();
 	void fabInit();
 	void fabProcess();
+	void dcSyncInit();
+	void dcSyncProcess();
 	//void generalProcess();
 
 	void updatePointer(const size_t used);
@@ -41,7 +44,7 @@ private:
 
 // singal
 public:
-	//void handleDelta(const std::string& data, const RPCInfo& info);
+	void handleDelta(const std::string& data, const RPCInfo& info);
 	void handleReply(const std::string& data, const RPCInfo& info);
 	void handleWorkerList(const std::string& data, const RPCInfo& info);
 	void handleParameter(const std::string& data, const RPCInfo& info);
@@ -51,6 +54,12 @@ public:
 	void handleContinue(const std::string& data, const RPCInfo& info);
 	void handleTerminate(const std::string& data, const RPCInfo& info);
 		
+	void broadcastDelta(std::vector<double>& delta);
+	void waitDeltaFromAll();
+	void accumulateDelta(std::vector<double>& delta, const int source);
+	void applyDelta();
+	void sendParameter2M();
+
 
 private:
 	size_t dataPointer;
@@ -62,6 +71,16 @@ private:
 	IDMapper wm; // worker mapper
 	SyncUnit suOnline;
 	SyncUnit suXlength;
+
+	int typeDDeltaAny, typeDDeltaAll;
+	//workerLst = {}; // ??
+	//trainer.bindModel(&model);
+	double factorDelta;
+	size_t nx;
+	//iter = 0;
+	size_t nUpdate;
+	size_t lastArchIter;
+	std::vector<double> bufferDelta;
 	
 	bool hasNewParam;
 	std::mutex mParam;
@@ -74,4 +93,7 @@ private:
 	//std::mutex mTrain;
 	std::atomic<bool> allowTrain;
 	std::atomic<bool> exitTrain;
+
+	/// new sync for decentrialize
+	SyncUnit suDeltaAny, suDeltaAll;
 };

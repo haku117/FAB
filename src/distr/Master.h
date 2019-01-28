@@ -27,6 +27,8 @@ private:
 	void fsbProcess();
 	void fabInit();
 	void fabProcess();
+	void dcInit();
+	void dcProcess();
 
 // local logic
 private:
@@ -49,6 +51,9 @@ public:
 	void waitDeltaFromAny(); // dont reset suDeltaAny
 	void waitDeltaFromAll(); // reset suDeltaAll
 	void gatherDelta();
+
+	void handleParameter(const std::string & data, const RPCInfo & info);
+	void waitParameter(); // waitParameter from one worker
 
 // handler
 public:
