@@ -81,8 +81,8 @@ struct ParameterLoader{
 	pair<string, vector<double>> loadParameter(const string& name, ifstream& fin){
 		if(name == "lr")
 			return funLR(fin);
-		else if(name == "mlp")
-			return funMLP(fin);
+		else
+			return funGeneral(fin);
 		return {};
 	}
 private:
@@ -93,7 +93,7 @@ private:
 		string param = to_string(vec.size() - 1);
 		return make_pair(move(param), move(vec));
 	}
-	pair<string, vector<double>> funMLP(ifstream& fin){
+	pair<string, vector<double>> funGeneral(ifstream& fin){
 		string line;
 		getline(fin, line);
 		string param = line;
@@ -134,7 +134,7 @@ int main(int argc, char* argv[]){
 		string tmp;
 		tie(tmp, ref) = io.load(finr);
 		if(tmp != algParam){
-			cerr << "Warning: given parameter does not match the one read from file" << endl;
+			cerr << "Warning: given parameter does not match the one read from parameter file" << endl;
 		}
 		algParam = tmp;
 	}

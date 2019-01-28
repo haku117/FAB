@@ -90,7 +90,7 @@ void Option::showUsage() const {
 		" <lrate> <batch-size> <term-iter> <term-time> [arv-iter=1000] [arv-time=0.5] [log-iter=1000]" << endl;
 	//cout << "usage: <algorithm> <mode> <data-file> <output-file> <id-skip> <id-y> <nw> <batch-size> <term-iter> <term-time>" << endl;
 	cout << "  <mode>: sync, async, fsb, fab"
-		<< "  <alg>: algorithm name. Support: lr, mlp.\n"
+		<< "  <alg>: algorithm name. Support: lr, mlp, cnn.\n"
 		<< "  <param>: parameter of the algorithm, usually the shape of the algorithm.\n"
 		<< "  <id-skip>: a list separated with space or comma."
 		<< endl;
@@ -114,6 +114,8 @@ bool Option::processAlgorithm(){
 	if(algorighm == "lr"){
 		return true;
 	} else if(algorighm == "mlp"){
+		return true;
+	} else if(algorighm == "cnn"){
 		return true;
 	}
 	return false;
