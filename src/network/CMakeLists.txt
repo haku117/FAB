@@ -16,5 +16,5 @@ target_include_directories(network PRIVATE ${MPI_CXX_INCLUDE_PATH})
 
 set_target_properties(network PROPERTIES
     LINK_FLAGS "${MPI_CXX_LINK_FLAGS}")
-target_link_libraries(network ${MPI_CXX_LIBRARIES})
+target_link_libraries(network util ${MPI_CXX_LIBRARIES})
 

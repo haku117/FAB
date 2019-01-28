@@ -11,11 +11,14 @@ static inline void Sleep(){
 }
 
 NetworkThread::NetworkThread() :
-		stat_send_pkg(0), stat_recv_pkg(0),
-		stat_send_byte(0), stat_recv_byte(0),
-		running(false), done(false), net(nullptr)
+	stat_send_pkg(0), stat_recv_pkg(0),
+	stat_send_byte(0), stat_recv_byte(0),
+	stat_send_time(0.0), stat_recv_time(0.0),
+	stat_time_serial(0.0),
+	running(false), done(false), net(nullptr)
 {
 	net = NetworkImplMPI::GetInstance();
+	pending_sends_ = &ps_buffer_[0];
 
 	running = true;
 	t_ = thread(&NetworkThread::Run, this);
@@ -82,10 +85,11 @@ void NetworkThread::Run(){
 		/* bunch send: */
 		if(!pause_ && !pending_sends_->empty()){
 			//two-buffers-swapping implementation for better performance
-			vector<pair<Task*,bool>>* pv=pending_sends_;
+			vector<pair<Task*, bool>>* pv;
 			{
 				lock_guard<recursive_mutex> sl(ps_lock);
-				pending_sends_=&ps_buffer_[++ps_idx_%2];
+				pv = pending_sends_;
+				pending_sends_ = &ps_buffer_[++ps_idx_ % 2];
 			}
 			auto end_it=pv->end();
 			for(auto it = pv->begin(); it!=end_it; ++it){
@@ -118,51 +122,43 @@ bool NetworkThread::checkReceiveQueue(std::string& data, TaskBase& info){
 }
 
 void NetworkThread::readAny(string& data, int *srcRet, int *typeRet){
-//	Timer t;
 	while(!tryReadAny(data, srcRet, typeRet)){
+		Timer tmr;
 		Sleep();
+		stat_recv_time += tmr.elapseSd();
 	}
-//	stats["network_time"] += t.elapsed();
 }
 bool NetworkThread::tryReadAny(string& data, int *srcRet, int *typeRet){
+	Timer tmr;
+	bool found = false;
 	TaskBase info;
 	if(checkReceiveQueue(data,info)){
 		if(srcRet) *srcRet = info.src_dst;
 		if(typeRet) *typeRet = info.type;
 		++stat_recv_pkg;
 		stat_recv_byte += data.size();
-		return true;
+		found = true;
 	}
-	return false;
+	stat_recv_time += tmr.elapseSd();
+	return found;
 }
 
 // Enqueue the given request to pending buffer for transmission.
-int NetworkThread::send(Task *req){
+void NetworkThread::send(Task *req){
 	int size = req->payload.size();
 	lock_guard<recursive_mutex> sl(ps_lock);
 	pending_sends_->emplace_back(req, false);
 	++stat_send_pkg;
 	stat_send_byte += size;
-	return size;
 }
 
-// Directly (Physically) send the request.
-int NetworkThread::sendDirect(Task *req){
-	int size = req->payload.size();
-	net->send(req);
-	++stat_send_pkg;
-	stat_send_byte += size;
-	return size;
-}
-
-int NetworkThread::broadcast(Task* req) {
+void NetworkThread::broadcast(Task* req) {
 	int size = req->payload.size();
 	lock_guard<recursive_mutex> sl(ps_lock);
 	pending_sends_->emplace_back(req, true);
 	//net->broadcast(req);
 	stat_send_pkg += this->size() - 1;
 	stat_send_byte += size * (this->size() - 1);
-	return size;
 }
 
 void NetworkThread::flush() {
