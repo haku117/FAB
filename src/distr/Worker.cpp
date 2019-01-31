@@ -39,6 +39,7 @@ Worker::Worker() : Runner() {
 	/// for DC
 	suDeltaAny.reset();
 	suDeltaAll.reset();
+	// suTPause.reset();
 }
 
 void Worker::init(const Option* opt, const size_t lid)
@@ -60,6 +61,8 @@ void Worker::init(const Option* opt, const size_t lid)
 	} else if(opt->mode == "fab"){
 		fabInit();
 	} else if(opt->mode == "dcsync"){
+		dcSyncInit();
+	} else if(opt->mode == "dcfsb"){
 		dcSyncInit();
 	}
 }
@@ -114,6 +117,8 @@ void Worker::run()
 		fabProcess();
 	} else if(opt->mode == "dcsync"){
 		dcSyncProcess();
+	} else if(opt->mode == "dcfsb"){
+		dcFsbProcess();
 	}
 
 	DLOG(INFO) << "finish training";
@@ -167,6 +172,50 @@ void Worker::dcSyncProcess()
 		if(localID == 0)	/// send record to master only for worker 0
 			sendParameter2M(); /// update parameter to master
 
+		stat.t_par_calc += tmr.elapseSd();
+		++iter;
+	}
+}
+
+void Worker::dcFsbProcess()
+{	
+	while(!exitTrain){
+		if(allowTrain.load() == false){
+			sleep();
+			continue;
+		}
+		VLOG_EVERY_N(ln, 1) << "Iteration " << iter << ": calculate delta";
+		Timer tmr;
+		size_t cnt;
+		// try to use localBatchSize data-points, the actual usage is returned via cnt 
+		tie(cnt, bfDelta) = trainer.batchDelta(allowTrain, dataPointer, localBatchSize, true);
+		updatePointer(cnt);
+		VLOG_EVERY_N(ln, 2) << "  calculate delta with " << cnt << " data points";
+		stat.t_dlt_calc+= tmr.elapseSd();
+		VLOG_EVERY_N(ln, 2) << "  send delta";
+
+		tmr.restart();
+		if(allowTrain == true) {
+			broadcastSignalPause();
+		}
+		broadcastDelta(bfDelta);
+		bufferDelta = bfDelta;
+		rph.input(typeDDeltaAll, (int)localID);
+
+		if(exitTrain==true){
+			break;
+		}
+		VLOG_EVERY_N(ln, 2) << "  DC: wait for delta from all other workers";
+		waitDeltaFromAll();
+		if(exitTrain==true){
+			break;
+		}
+		stat.t_par_wait += tmr.elapseSd();
+
+		tmr.restart();
+		applyDelta();
+		if(localID == 0)	/// send record to master only for worker 0
+			sendParameter2M(); /// update parameter to master
 		stat.t_par_calc += tmr.elapseSd();
 		++iter;
 	}
@@ -525,7 +574,7 @@ void Worker::handleParameterFab(const std::string & data, const RPCInfo & info)
 void Worker::handlePause(const std::string & data, const RPCInfo & info)
 {
 	pauseTrain();
-	sendReply(info);
+	// sendReply(info);
 }
 
 void Worker::handleContinue(const std::string & data, const RPCInfo & info)
@@ -588,4 +637,11 @@ void Worker::sendParameter2M()
 	DVLOG(3) << "send parameter to master with: " << model.getParameter().weights;
 	net->send(masterNID, MType::DParameter, model.getParameter().weights);
 	++stat.n_par_send;
+}
+
+void Worker::broadcastSignalPause()
+{
+	net->broadcast(MType::CTrainPause, "");
+	// suTPause.wait();
+	// suTPause.reset();
 }

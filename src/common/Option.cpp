@@ -101,7 +101,8 @@ bool Option::preprocessMode(){
 		if(ch >= 'A' && ch <= 'Z')
 			ch += 'a' - 'A';
 	}
-	if(mode == "sync" || mode == "async" || mode == "fsb" || mode == "fab" || mode == "dcsync")
+	if(mode == "sync" || mode == "async" || mode == "fsb" || mode == "fab" 
+		|| mode == "dcsync" || mode = "dcfsb")
 		return true;
 	return false;
 }

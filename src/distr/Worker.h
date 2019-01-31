@@ -25,6 +25,7 @@ private:
 	void fabProcess();
 	void dcSyncInit();
 	void dcSyncProcess();
+	void dcFsbProcess();
 	//void generalProcess();
 
 	void updatePointer(const size_t used);
@@ -59,7 +60,7 @@ public:
 	void accumulateDelta(std::vector<double>& delta, const int source);
 	void applyDelta();
 	void sendParameter2M();
-
+	void broadcastSignalPause();
 
 private:
 	size_t dataPointer;
@@ -96,4 +97,5 @@ private:
 
 	/// new sync for decentrialize
 	SyncUnit suDeltaAny, suDeltaAll;
+	// SyncUnit suTPause; // for dc fsb check pause status
 };

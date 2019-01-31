@@ -46,6 +46,8 @@ void Master::init(const Option* opt, const size_t lid)
 		fabInit();
 	} else if(opt->mode == "dcsync"){
 		dcInit();
+	} else if(opt->mode == "dcfsb"){
+		dcInit();
 	}
 }
 
@@ -83,6 +85,8 @@ void Master::run()
 	} else if(opt->mode == "fab"){
 		fabProcess();
 	} else if(opt->mode == "dcsync"){
+		dcProcess();
+	} else if(opt->mode == "dcfsb"){
 		dcProcess();
 	}
 
