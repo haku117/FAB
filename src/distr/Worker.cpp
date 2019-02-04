@@ -214,6 +214,7 @@ void Worker::dcFsbProcess()
 
 		tmr.restart();
 		applyDelta();
+		resumeTrain();
 		if(localID == 0)	/// send record to master only for worker 0
 			sendParameter2M(); /// update parameter to master
 		stat.t_par_calc += tmr.elapseSd();
@@ -330,6 +331,7 @@ void Worker::fsbProcess()
 		stat.t_par_wait += tmr.elapseSd();
 		tmr.restart();
 		applyBufferParameter();
+		resumeTrain();
 		stat.t_par_calc += tmr.elapseSd();
 		++iter;
 	}
@@ -490,7 +492,8 @@ void Worker::fetchParmeter()
 
 void Worker::pauseTrain()
 {
-	allowTrain = false;
+	if(bfDelta != NULL)
+		allowTrain = false;
 }
 
 void Worker::resumeTrain()
@@ -574,7 +577,7 @@ void Worker::handleParameterFab(const std::string & data, const RPCInfo & info)
 void Worker::handlePause(const std::string & data, const RPCInfo & info)
 {
 	pauseTrain();
-	// sendReply(info);
+	sendReply(info);
 }
 
 void Worker::handleContinue(const std::string & data, const RPCInfo & info)
@@ -588,6 +591,7 @@ void Worker::handleTerminate(const std::string & data, const RPCInfo & info)
 	exitTrain = true;
 	pauseTrain(); // in case if the system is calculating delta
 	suParam.notify(); // in case if the system just calculated a delta (is waiting for new parameter)
+	suDeltaAll.notify(); // in case the worker is waiting other parameters
 	sendReply(info);
 }
 
