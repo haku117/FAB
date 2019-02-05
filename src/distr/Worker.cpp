@@ -29,6 +29,7 @@ Worker::Worker() : Runner() {
 	nUpdate = 0;
 	lastArchIter = 0;
 	//bufferDelta = NULL;
+	bfDeltaCnt = 0;
 
 	trainer.bindModel(&model);
 
@@ -180,15 +181,17 @@ void Worker::dcSyncProcess()
 void Worker::dcFsbProcess()
 {	
 	while(!exitTrain){
-		if(allowTrain.load() == false){
-			sleep();
-			continue;
-		}
+		// if(allowTrain.load() == false){
+		// 	sleep();
+		// 	continue;
+		// }
 		VLOG_EVERY_N(ln, 1) << "Iteration " << iter << ": calculate delta";
 		Timer tmr;
 		size_t cnt;
+		
+		std::vector<double> lclDelta;
 		// try to use localBatchSize data-points, the actual usage is returned via cnt 
-		tie(cnt, bfDelta) = trainer.batchDelta(allowTrain, dataPointer, localBatchSize, true);
+		tie(cnt, lclDelta) = trainer.batchDelta(allowTrain, dataPointer, localBatchSize, true);
 		updatePointer(cnt);
 		VLOG_EVERY_N(ln, 2) << "  calculate delta with " << cnt << " data points";
 		stat.t_dlt_calc+= tmr.elapseSd();
@@ -198,8 +201,8 @@ void Worker::dcFsbProcess()
 		if(allowTrain == true) {
 			broadcastSignalPause();
 		}
-		broadcastDelta(bfDelta);
-		bufferDelta = bfDelta;
+		broadcastDelta(lclDelta);
+		bufferDelta.accumulateDelta(lclDelta, (int)localID);
 		rph.input(typeDDeltaAll, (int)localID);
 
 		if(exitTrain==true){
@@ -492,7 +495,7 @@ void Worker::fetchParmeter()
 
 void Worker::pauseTrain()
 {
-	if(bfDelta != NULL)
+	// if(bfDelta != NULL)
 		allowTrain = false;
 }
 
@@ -618,9 +621,14 @@ void Worker::waitDeltaFromAll()
 
 void Worker::accumulateDelta(std::vector<double>& delta, const int source)
 {
+	lock_guard<mutex> lk(mDelta);
+	bfDeltaCnt++;
+	if(bfDeltaCnt > nWorker) {
+		DVLOG(1) << " Dam MORE number of delta applied &&&&&&&";
+	}
 	if(bufferDelta.empty()) {
 		bufferDelta = delta;
-		DVLOG(3) << " why bufferDelta is empty???????: ";
+		// DVLOG(3) << " why bufferDelta is empty???????: ";
 	}
 	else {
 		for(int i = 0; i < delta.size(); i++)
@@ -634,6 +642,7 @@ void Worker::applyDelta()
 		<< "\nonto: " << model.getParameter().weights;
 	model.accumulateParameter(bufferDelta, factorDelta);
 	bufferDelta.clear();
+	bfDeltaCnt = 0;
 }
 
 void Worker::sendParameter2M()

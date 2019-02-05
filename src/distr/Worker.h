@@ -85,11 +85,13 @@ private:
 	
 	bool hasNewParam;
 	std::mutex mParam;
+	std::mutex mDelta;
 	Parameter bfParam;
 	SyncUnit suParam;
 	//std::mutex mModel; // whether the model is in use
 
 	std::vector<double> bfDelta;
+	int bfDeltaCnt;
 
 	//std::mutex mTrain;
 	std::atomic<bool> allowTrain;
