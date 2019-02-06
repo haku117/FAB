@@ -512,7 +512,7 @@ void Worker::handleReply(const std::string& data, const RPCInfo& info) {
 	int type = deserialize<int>(data);
 	stat.t_data_deserial += tmr.elapseSd();
 	pair<bool, int> s = wm.nidTrans(info.source);
-	DVLOG(3) << "get reply from " << (s.first ? "W" : "M") << s.second << " type " << type;
+	DVLOG(4) << "get reply from " << (s.first ? "W" : "M") << s.second << " type " << type;
 	/*static int ndr = 0;
 	if(type == MType::DDelta){
 		++ndr;
