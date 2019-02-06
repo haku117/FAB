@@ -53,8 +53,8 @@ void Worker::init(const Option* opt, const size_t lid)
 	logName = "W"+to_string(localID);
 	setLogThreadName(logName);
 
-	deltaIndx0.assign(nWorker+1, false);
-	deltaIndx1.assign(nWorker+1, false);
+	deltaIndx0.assign(nWorker, false);
+	deltaIndx1.assign(nWorker, false);
 
 	if(opt->mode == "sync"){
 		syncInit();
@@ -628,10 +628,11 @@ void Worker::accumulateDelta(std::vector<double>& delta, const int source)
 	if (deltaIndx0[source]) { // if a delta from source is already there
 		copyDelta(bufferDeltaExt, delta);
 		deltaIndx1[source] = true;
-		// bfDeltaCnt++;
+		bfDeltaCnt++;
 		// DVLOG_IF(bfDeltaCnt > nWorker, 2) << " Dam MORE number of delta applied &&&&&&&";
 	}
 	else {
+		DVLOG_IF(deltaIndx1[source], 2) << " Dam WWWTTTFFFF number of delta applied &&&&&&&";
 		copyDelta(bufferDelta, delta);
 		deltaIndx0[source] = true;
 		rph.input(typeDDeltaAll, source); // trigger the syncUnit counter
@@ -656,7 +657,7 @@ void Worker::applyDelta()
 	model.accumulateParameter(bufferDelta, factorDelta);
 
 	/// resetDcBuffer
-	DVLOG(4) << "reset buffered delta index: " << deltaIndx1
+	DVLOG_IF(bfDeltaCnt > 0, 3) << "reset buffered delta index: " << deltaIndx1
 		<< "\nto: " << deltaIndx0;
 	bufferDelta = move(bufferDeltaExt);
 	bufferDeltaExt.clear();
@@ -666,14 +667,8 @@ void Worker::applyDelta()
 		}
 	}
 	deltaIndx0 = move(deltaIndx1);
-	deltaIndx1.clear();
-
-	// deltaIndx0.assign(deltaIndx1.begin(), deltaIndx1.end());
-	// deltaIndx1.assign(nWorker+1, false);
-	// for(int i = 0; i < bfDeltaCnt; i++){
-	// 	rph.input(typeDDeltaAll, i); // add accumulated syncUnit counter
-	// }
-	// bfDeltaCnt = 0;
+	deltaIndx1.assign(nWorker, false);
+	bfDeltaCnt = 0;
 }
 
 void Worker::sendParameter2M()
