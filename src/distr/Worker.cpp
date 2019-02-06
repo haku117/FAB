@@ -628,7 +628,7 @@ void Worker::accumulateDelta(std::vector<double>& delta, const int source)
 	if (deltaIndx0[source]) { // if a delta from source is already there
 		copyDelta(bufferDeltaExt, delta);
 		deltaIndx1[source] = true;
-		bfDeltaCnt++;
+		// bfDeltaCnt++;
 		// DVLOG_IF(bfDeltaCnt > nWorker, 2) << " Dam MORE number of delta applied &&&&&&&";
 	}
 	else {
@@ -641,7 +641,7 @@ void Worker::accumulateDelta(std::vector<double>& delta, const int source)
 void Worker::copyDelta(std::vector<double>& buffer, std::vector<double>& delta){
 
 	if(buffer.empty()) {
-		buffer = delta;
+		buffer = move(delta);
 	}
 	else {
 		for(int i = 0; i < delta.size(); i++)
@@ -658,22 +658,22 @@ void Worker::applyDelta()
 	/// resetDcBuffer
 	DVLOG(4) << "reset buffered delta index: " << deltaIndx1
 		<< "\nto: " << deltaIndx0;
-	bufferDelta.assign(bufferDeltaExt.begin(), bufferDeltaExt.end());
+	bufferDelta = move(bufferDeltaExt);
 	bufferDeltaExt.clear();
-	// for(int i = 0; i < deltaIndx1.size(); i++){
-	// 	deltaIndx0[i] = deltaIndx1[i];
-	// 	if(deltaIndx1[i]){
-	// 		deltaIndx1[i] = false;
-	// 		rph.input(typeDDeltaAll, i); // add accumulated syncUnit counter
-	// 	}
-	// }
-
-	deltaIndx0.assign(deltaIndx1.begin(), deltaIndx1.end());
-	deltaIndx1.assign(nWorker+1, false);
-	for(int i = 0; i < bfDeltaCnt; i++){
-		rph.input(typeDDeltaAll, i); // add accumulated syncUnit counter
+	for(int i = 0; i < deltaIndx1.size(); i++){
+		if(deltaIndx1[i]){
+			rph.input(typeDDeltaAll, i); // add accumulated syncUnit counter
+		}
 	}
-	bfDeltaCnt = 0;
+	deltaIndx0 = move(deltaIndx1);
+	deltaIndx1.clear();
+
+	// deltaIndx0.assign(deltaIndx1.begin(), deltaIndx1.end());
+	// deltaIndx1.assign(nWorker+1, false);
+	// for(int i = 0; i < bfDeltaCnt; i++){
+	// 	rph.input(typeDDeltaAll, i); // add accumulated syncUnit counter
+	// }
+	// bfDeltaCnt = 0;
 }
 
 void Worker::sendParameter2M()
