@@ -41,8 +41,6 @@ Worker::Worker() : Runner() {
 	suDeltaAny.reset();
 	suDeltaAll.reset();
 	// suTPause.reset();
-	deltaIndx0.assign(nWorker+1, false);
-	deltaIndx1.assign(nWorker+1, false);
 }
 
 void Worker::init(const Option* opt, const size_t lid)
@@ -54,6 +52,9 @@ void Worker::init(const Option* opt, const size_t lid)
 	ln = opt->logIter;
 	logName = "W"+to_string(localID);
 	setLogThreadName(logName);
+
+	deltaIndx0.assign(nWorker+1, false);
+	deltaIndx1.assign(nWorker+1, false);
 
 	if(opt->mode == "sync"){
 		syncInit();
