@@ -29,7 +29,7 @@ Worker::Worker() : Runner() {
 	nUpdate = 0;
 	lastArchIter = 0;
 	//bufferDelta = NULL;
-	bfDeltaCnt = 0;
+	// bfDeltaCnt = 0;
 
 	trainer.bindModel(&model);
 
@@ -41,6 +41,8 @@ Worker::Worker() : Runner() {
 	suDeltaAny.reset();
 	suDeltaAll.reset();
 	// suTPause.reset();
+	deltaIndx0.assign(nWorker+1, false);
+	deltaIndx1.assign(nWorker+1, false);
 }
 
 void Worker::init(const Option* opt, const size_t lid)
@@ -202,8 +204,8 @@ void Worker::dcFsbProcess()
 			broadcastSignalPause();
 		}
 		broadcastDelta(lclDelta);
-		bufferDelta.accumulateDelta(lclDelta, (int)localID);
-		rph.input(typeDDeltaAll, (int)localID);
+		accumulateDelta(lclDelta, (int)localID);
+		// rph.input(typeDDeltaAll, (int)localID);
 
 		if(exitTrain==true){
 			break;
@@ -604,7 +606,7 @@ void Worker::handleDelta(const std::string & data, const RPCInfo & info)
 {
 	auto delta = deserialize<vector<double>>(data);
 	int s = wm.nid2lid(info.source);
-	rph.input(typeDDeltaAll, s);
+	// rph.input(typeDDeltaAll, s);
 	accumulateDelta(delta, s);
 ///	applyDelta(delta, s);
 ///	rph.input(typeDDeltaAll, s);
@@ -622,17 +624,27 @@ void Worker::waitDeltaFromAll()
 void Worker::accumulateDelta(std::vector<double>& delta, const int source)
 {
 	lock_guard<mutex> lk(mDelta);
-	bfDeltaCnt++;
-	if(bfDeltaCnt > nWorker) {
-		DVLOG(1) << " Dam MORE number of delta applied &&&&&&&";
+	// bfDeltaCnt++;
+	if (deltaIndx0[source]) { // if a delta from source is already there
+		copyDelta(bufferDeltaExt, delta);
+		deltaIndx1[source] = true;
+		// DVLOG_IF(bfDeltaCnt > nWorker, 2) << " Dam MORE number of delta applied &&&&&&&";
 	}
-	if(bufferDelta.empty()) {
-		bufferDelta = delta;
-		// DVLOG(3) << " why bufferDelta is empty???????: ";
+	else {
+		copyDelta(bufferDelta, delta);
+		deltaIndx0[source] = true;
+		rph.input(typeDDeltaAll, source); // trigger the syncUnit counter
+	}
+}
+
+void Worker::copyDelta(std::vector<double>& buffer, std::vector<double>& delta){
+
+	if(buffer.empty()) {
+		buffer = delta;
 	}
 	else {
 		for(int i = 0; i < delta.size(); i++)
-			bufferDelta[i] += delta[i];
+			buffer[i] += delta[i];
 	}
 }
 
@@ -641,8 +653,13 @@ void Worker::applyDelta()
 	DVLOG(3) << "apply buffered delta : " << bufferDelta
 		<< "\nonto: " << model.getParameter().weights;
 	model.accumulateParameter(bufferDelta, factorDelta);
-	bufferDelta.clear();
-	bfDeltaCnt = 0;
+
+	/// resetDcBuffer
+	bufferDelta.assign(bufferDeltaExt.begin(), bufferDeltaExt.end());
+	bufferDeltaExt.clear();
+	deltaIndx0.assign(deltaIndx1.begin(), deltaIndx1.end());
+	deltaIndx1.assign(nWorker+1, false);
+	// bfDeltaCnt = 0;
 }
 
 void Worker::sendParameter2M()

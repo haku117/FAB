@@ -58,6 +58,7 @@ public:
 	void broadcastDelta(std::vector<double>& delta);
 	void waitDeltaFromAll();
 	void accumulateDelta(std::vector<double>& delta, const int source);
+	void copyDelta(std::vector<double>& buffer, std::vector<double>& delta);
 	void applyDelta();
 	void sendParameter2M();
 	void broadcastSignalPause();
@@ -81,7 +82,12 @@ private:
 	//iter = 0;
 	size_t nUpdate;
 	size_t lastArchIter;
+
 	std::vector<double> bufferDelta;
+	std::vector<double> bufferDeltaExt;
+	std::vector<bool> deltaIndx0;
+	std::vector<bool> deltaIndx1;
+	// int bfDeltaCnt;
 	
 	bool hasNewParam;
 	std::mutex mParam;
@@ -90,8 +96,7 @@ private:
 	SyncUnit suParam;
 	//std::mutex mModel; // whether the model is in use
 
-	std::vector<double> bfDelta;
-	int bfDeltaCnt;
+	std::vector<double> bfDelta; // dcsync need to delete
 
 	//std::mutex mTrain;
 	std::atomic<bool> allowTrain;
