@@ -87,7 +87,7 @@ private:
 	std::vector<double> bufferDeltaExt;
 	std::vector<bool> deltaIndx0;
 	std::vector<bool> deltaIndx1;
-	// int bfDeltaCnt;
+	int bfDeltaCnt;
 	
 	bool hasNewParam;
 	std::mutex mParam;

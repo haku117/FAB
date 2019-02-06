@@ -29,7 +29,7 @@ Worker::Worker() : Runner() {
 	nUpdate = 0;
 	lastArchIter = 0;
 	//bufferDelta = NULL;
-	// bfDeltaCnt = 0;
+	bfDeltaCnt = 0;
 
 	trainer.bindModel(&model);
 
@@ -625,10 +625,10 @@ void Worker::waitDeltaFromAll()
 void Worker::accumulateDelta(std::vector<double>& delta, const int source)
 {
 	lock_guard<mutex> lk(mDelta);
-	// bfDeltaCnt++;
 	if (deltaIndx0[source]) { // if a delta from source is already there
 		copyDelta(bufferDeltaExt, delta);
 		deltaIndx1[source] = true;
+		bfDeltaCnt++;
 		// DVLOG_IF(bfDeltaCnt > nWorker, 2) << " Dam MORE number of delta applied &&&&&&&";
 	}
 	else {
@@ -660,15 +660,20 @@ void Worker::applyDelta()
 		<< "\nto: " << deltaIndx0;
 	bufferDelta.assign(bufferDeltaExt.begin(), bufferDeltaExt.end());
 	bufferDeltaExt.clear();
-	for(int i = 0; i < deltaIndx1.size(); i++){
-		deltaIndx0[i] = deltaIndx1[i];
-		if(deltaIndx1[i]){
-			deltaIndx1[i] = false;
-			rph.input(typeDDeltaAll, i); // add accumulated syncUnit counter
-		}
+	// for(int i = 0; i < deltaIndx1.size(); i++){
+	// 	deltaIndx0[i] = deltaIndx1[i];
+	// 	if(deltaIndx1[i]){
+	// 		deltaIndx1[i] = false;
+	// 		rph.input(typeDDeltaAll, i); // add accumulated syncUnit counter
+	// 	}
+	// }
+
+	deltaIndx0.assign(deltaIndx1.begin(), deltaIndx1.end());
+	deltaIndx1.assign(nWorker+1, false);
+	for(int i = 0; i < bfDeltaCnt; i++){
+		rph.input(typeDDeltaAll, i); // add accumulated syncUnit counter
 	}
-	// deltaIndx1.assign(nWorker+1, false);
-	// bfDeltaCnt = 0;
+	bfDeltaCnt = 0;
 }
 
 void Worker::sendParameter2M()
