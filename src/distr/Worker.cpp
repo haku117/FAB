@@ -655,13 +655,15 @@ void Worker::applyDelta()
 	model.accumulateParameter(bufferDelta, factorDelta);
 
 	/// resetDcBuffer
+	DVLOG(4) << "reset buffered delta index: " << deltaIndx1
+		<< "\nto: " << deltaIndx0;
 	bufferDelta.assign(bufferDeltaExt.begin(), bufferDeltaExt.end());
 	bufferDeltaExt.clear();
-	for(int i = 0; i < deltaIndx1.length; i++){
+	for(int i = 0; i < deltaIndx1.size(); i++){
 		deltaIndx0[i] = deltaIndx1[i];
 		if(deltaIndx1[i]){
 			deltaIndx1[i] = false;
-			rph.input(typeDDeltaAll, source); // add accumulated syncUnit counter
+			rph.input(typeDDeltaAll, i); // add accumulated syncUnit counter
 		}
 	}
 	// deltaIndx1.assign(nWorker+1, false);
