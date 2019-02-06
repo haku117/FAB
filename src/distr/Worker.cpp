@@ -657,8 +657,14 @@ void Worker::applyDelta()
 	/// resetDcBuffer
 	bufferDelta.assign(bufferDeltaExt.begin(), bufferDeltaExt.end());
 	bufferDeltaExt.clear();
-	deltaIndx0.assign(deltaIndx1.begin(), deltaIndx1.end());
-	deltaIndx1.assign(nWorker+1, false);
+	for(int i = 0; i < deltaIndx1.length; i++){
+		deltaIndx0[i] = deltaIndx1[i];
+		if(deltaIndx1[i]){
+			deltaIndx1[i] = false;
+			rph.input(typeDDeltaAll, source); // add accumulated syncUnit counter
+		}
+	}
+	// deltaIndx1.assign(nWorker+1, false);
 	// bfDeltaCnt = 0;
 }
 
