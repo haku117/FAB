@@ -18,7 +18,7 @@ target_link_libraries(mw-thread data model train ${CMAKE_THREAD_LIBS_INIT})
 
 add_executable(communication communication.cpp)
 target_include_directories(communication PRIVATE ${MPI_CXX_INCLUDE_PATH})
-target_link_libraries(communication network logging 
+target_link_libraries(communication network logging util
 	${MPI_CXX_LIBRARIES}
 )
 

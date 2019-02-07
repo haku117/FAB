@@ -518,7 +518,7 @@ void Worker::handleReply(const std::string& data, const RPCInfo& info) {
 		++ndr;
 		VLOG_EVERY_N(ln / 10, 1) << "get delta reply: " << ndr;
 	}*/
-	// rph.input(type, s.second);
+	rph.input(type, s.second);
 }
 
 void Worker::handleWorkerList(const std::string & data, const RPCInfo & info)
