@@ -13,6 +13,8 @@ struct Statistics {
 	// parameter
 	size_t n_par_send, n_par_recv;
 	double t_par_calc, t_par_wait;
+	// data point processed (for flex)
+	size_t n_data_proc;
 
 	Statistics();
 };

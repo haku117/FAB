@@ -197,6 +197,7 @@ void Worker::dcFsbProcess()
 		tie(cnt, lclDelta) = trainer.batchDelta(allowTrain, dataPointer, localBatchSize, true);
 		updatePointer(cnt);
 		VLOG_EVERY_N(ln, 2) << "  calculate delta with " << cnt << " data points";
+		stat.n_data_proc += cnt
 		stat.t_dlt_calc+= tmr.elapseSd();
 		VLOG_EVERY_N(ln, 2) << "  send delta";
 

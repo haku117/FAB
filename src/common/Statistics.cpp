@@ -8,6 +8,7 @@ Statistics::Statistics()
 	n_dlt_send(0), n_dlt_recv(0),
 	t_dlt_calc(0.0), t_dlt_wait(0.0),
 	n_par_send(0), n_par_recv(0),
-	t_par_calc(0), t_par_wait(0.0)
+	t_par_calc(0), t_par_wait(0.0),
+	n_data_proc(0)
 {
 }
