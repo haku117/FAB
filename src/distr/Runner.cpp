@@ -76,7 +76,8 @@ void Runner::showStat() const
 		<< "num-net-recv: " << stat.n_net_recv << "\tbyte-net-recv: " << stat.b_net_recv
 		<< "\ttime-net-recv: " << stat.t_net_recv << "\ttime-data-deserialize: "<< stat.t_data_deserial
 		<< "\n"
-		<< "num-dlt-send: " << stat.n_dlt_send << "\tnum-dlt-recv: " << stat.n_dlt_recv
+		<< "num-dlt-send: " << stat.n_dlt_send << "\tnum-dlt-recv: " << stat.n_dlt_recv 
+		<< "\tnum-data-proc: " << stat.n_data_proc
 		<< "\ttime-dlt-calc: " << stat.t_dlt_calc << "\ttime-dlt-wait: " << stat.t_dlt_wait
 		<< "\n"
 		<< "num-par-send: " << stat.n_par_send << "\tnum-par-recv: " << stat.n_par_recv

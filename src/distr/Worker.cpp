@@ -197,6 +197,7 @@ void Worker::dcFsbProcess()
 		tie(cnt, lclDelta) = trainer.batchDelta(allowTrain, dataPointer, localBatchSize, true);
 		updatePointer(cnt);
 		VLOG_EVERY_N(ln, 2) << "  calculate delta with " << cnt << " data points";
+		stat.n_data_proc += cnt
 		stat.t_dlt_calc+= tmr.elapseSd();
 		VLOG_EVERY_N(ln, 2) << "  send delta";
 
@@ -518,7 +519,7 @@ void Worker::handleReply(const std::string& data, const RPCInfo& info) {
 		++ndr;
 		VLOG_EVERY_N(ln / 10, 1) << "get delta reply: " << ndr;
 	}*/
-	// rph.input(type, s.second);
+	rph.input(type, s.second);
 }
 
 void Worker::handleWorkerList(const std::string & data, const RPCInfo & info)
