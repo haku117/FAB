@@ -1,6 +1,4 @@
 #include "Kmeans.h"
-#include "mathfunc.h"
-// #include "util/Util.h"
 #include <cmath>
 #include <stdexcept>
 using namespace std;
