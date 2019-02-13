@@ -118,6 +118,8 @@ bool Option::processAlgorithm(){
 		return true;
 	} else if(algorighm == "cnn"){
 		return true;
+	} else if(algorighm == "km"){
+		return true;
 	}
 	return false;
 }

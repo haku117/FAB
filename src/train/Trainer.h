@@ -9,9 +9,13 @@ class Trainer
 public:
 	Model* pm;
 	const DataHolder* pd;
+
+	/// local stats for each data point
+	std::vector<int> stats;
+
 public:
 	void bindModel(Model* pm);
-	void bindDataset(const DataHolder* pd);
+	void bindDataset(const DataHolder* pd); /// 
 
 	double loss() const;
 
