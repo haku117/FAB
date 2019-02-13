@@ -1,7 +1,7 @@
 include_directories("../src/")
 
 add_custom_target(mytest DEPENDS
-	data-load train-simple mw-simple mw-thread communication unit-worker
+	data-load train-simple mw-simple mw-thread unit-worker
 	model-lr model-mlp model-cnn)
 
 add_executable(data-load data-load.cpp)
@@ -16,12 +16,9 @@ target_link_libraries(mw-simple data model train)
 add_executable(mw-thread mw-thread.cpp)
 target_link_libraries(mw-thread data model train ${CMAKE_THREAD_LIBS_INIT})
 
-add_executable(communication communication.cpp)
-target_include_directories(communication PRIVATE ${MPI_CXX_INCLUDE_PATH})
-target_link_libraries(communication network logging util
-	${MPI_CXX_LIBRARIES}
-)
 
+=======
+>>>>>>> 65fd44a5f2f5d961a4edd53da11ff31009f39867
 add_executable(unit-worker unit-worker.cpp)
 target_include_directories(unit-worker PRIVATE ${MPI_CXX_INCLUDE_PATH})
 target_link_libraries(unit-worker distr #data model train common driver network logging 

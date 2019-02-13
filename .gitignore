@@ -105,3 +105,4 @@ conf/
 /bin
 log
 *.log
+.DS_Store

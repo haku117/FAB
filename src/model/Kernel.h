@@ -17,6 +17,9 @@ public:
 	virtual double loss(const std::vector<double>& pred, const std::vector<double>& label) const = 0;
 	virtual std::vector<double> gradient(
 		const std::vector<double>& x, const std::vector<double>& w, const std::vector<double>& y) const = 0;
+	// virtual std::vector<double> gradient(
+	// 	const std::vector<double>& x, const std::vector<double>& w, const std::vector<double>& y,
+	// 	std::vector<double>* z = NULL);
 
 protected:
 	int xlength;
