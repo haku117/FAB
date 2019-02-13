@@ -1,6 +1,6 @@
 #include "CNNProxy.h"
 #include "util/Util.h"
-#include "mathfunc.h"
+#include "math/activation_func.h"
 #include <algorithm>
 #include <numeric>
 #include <regex>
@@ -24,7 +24,7 @@ void CNNProxy::init(const std::string& param){
     unitNode.resize(nLayer);
     shapeNode.resize(nLayer);
     shapeLayer.resize(nLayer);
-    ndimLayer.resize(nLayer);
+    dimFeatureLayer.resize(nLayer);
 	nFeatureLayer.resize(nLayer);
 	nWeightNode.resize(nLayer);
 	weightOffsetLayer.resize(nLayer + 1);
@@ -35,7 +35,7 @@ void CNNProxy::init(const std::string& param){
     typeLayer[0] = LayerType::Input;
 	unitNode[0] = { 1 };
 	shapeNode[0] = shapeLayer[0] = getShape(strLayer[0]);
-    ndimLayer[0] = static_cast<int>(shapeLayer[0].size());
+    dimFeatureLayer[0] = static_cast<int>(shapeLayer[0].size());
 	nFeatureLayer[0] = 1;
 	nWeightNode[0] = weightOffsetLayer[0] = 0;
     for(size_t i = 1; i<strLayer.size(); ++i){
@@ -114,7 +114,7 @@ void CNNProxy::createLayerFC(const size_t i, const int n){
 	unitNode[i] = shapeLayer[i - 1];
 	shapeNode[i] = { 1 };
 	shapeLayer[i] = { nNodeLayer[i], 1 };
-	ndimLayer[i] = 2;
+	dimFeatureLayer[i] = 2;
 	generateNode(i);
 }
 
@@ -143,7 +143,7 @@ void CNNProxy::setLayerParameter(const size_t i){
 	shapeLayer[i].push_back(nFeatureLayer[i]);
 	for(size_t j = 0; j < shapeNode[i].size(); ++j)
 		shapeLayer[i].push_back(shapeNode[i][j]);
-	ndimLayer[i] = static_cast<int>(shapeLayer[i].size());
+	dimFeatureLayer[i] = static_cast<int>(shapeLayer[i].size());
 }
 
 void CNNProxy::generateNode(const size_t i)

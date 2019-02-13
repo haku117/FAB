@@ -34,6 +34,7 @@ private:
 	void sendXLength();
 	void sendClosed();
 
+	void accumulateDelta(const std::vector<double>& delta);
 	void sendDelta(std::vector<double>& delta);
 	void bufferParameter(Parameter& p);
 	void applyBufferParameter(); // using the buffer
@@ -49,7 +50,6 @@ public:
 	void handleReply(const std::string& data, const RPCInfo& info);
 	void handleWorkerList(const std::string& data, const RPCInfo& info);
 	void handleParameter(const std::string& data, const RPCInfo& info);
-	void handleParameterFsb(const std::string& data, const RPCInfo& info);
 	void handleParameterFab(const std::string& data, const RPCInfo& info);
 	void handlePause(const std::string& data, const RPCInfo& info);
 	void handleContinue(const std::string& data, const RPCInfo& info);
@@ -65,7 +65,6 @@ public:
 
 private:
 	size_t dataPointer;
-	size_t iter;
 	size_t localBatchSize;
 	int ln; // log-every-n times
 

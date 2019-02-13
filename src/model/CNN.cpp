@@ -1,5 +1,4 @@
 #include "CNN.h"
-#include "mathfunc.h"
 #include "util/Util.h"
 #include <cmath>
 #include <stdexcept>

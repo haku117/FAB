@@ -1,5 +1,5 @@
 #include "LogisticRegression.h"
-#include "mathfunc.h"
+#include "math/activation_func.h"
 #include <cmath>
 #include <stdexcept>
 using namespace std;

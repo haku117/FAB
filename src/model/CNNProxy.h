@@ -13,9 +13,12 @@ struct CNNProxy {
     std::vector<LayerType> typeLayer;
 	std::vector<std::vector<int>> unitNode; // the shape of input for 1 output entry of each node
 	std::vector<std::vector<int>> shapeNode; // output shape of a single node at layer i
-    std::vector<std::vector<int>> shapeLayer; // output shape of layer i
-    std::vector<int> ndimLayer; // = shapeLayer[i].size()
+    std::vector<std::vector<int>> shapeLayer; // output shape of the whole layer i (nNodeLayer[i]*nFeatureLayer[i-1], shapeNode[i])
+
 	std::vector<int> nFeatureLayer; // # of feature of layer i, = shapeLayer[i][0]
+    std::vector<int> dimFeatureLayer; // = shapeLayer[i].size() -> shapeFeatureLayer[i].size()
+	std::vector<std::vector<int>> shapeFeatureLayer; // the shape of each feature
+
 	std::vector<int> nWeightNode; // # of weight for a node at layer i
 	std::vector<int> weightOffsetLayer; // weight offset of the the first node at layer i
 

@@ -1,4 +1,4 @@
-#include "mathfunc.h"
+#include "activation_func.h"
 #include <cmath>
 using namespace std;
 

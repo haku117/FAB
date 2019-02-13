@@ -3,6 +3,7 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 include_directories( ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_subdirectory(util)
+add_subdirectory(math)
 add_subdirectory(data)
 add_subdirectory(model)
 add_subdirectory(train)
