@@ -9,6 +9,7 @@ Statistics::Statistics()
 	t_dlt_calc(0.0), t_dlt_wait(0.0),
 	n_par_send(0), n_par_recv(0),
 	t_par_calc(0), t_par_wait(0.0),
-	n_data_proc(0)
+	n_iter(0), n_point(0),
+	t_smy_work(0.0), t_smy_wait(0.0)
 {
 }

@@ -237,10 +237,6 @@ void Worker::syncInit()
 void Worker::syncProcess()
 {
 	while(!exitTrain){
-		if(allowTrain.load() == false){
-			sleep();
-			continue;
-		}
 		VLOG_EVERY_N(ln, 1) << "Iteration " << iter << ": calculate delta";
 		Timer tmr;
 		bfDelta = trainer.batchDelta(dataPointer, localBatchSize, true);
@@ -276,10 +272,10 @@ void Worker::asyncInit()
 void Worker::asyncProcess()
 {
 	while(!exitTrain){
-		if(allowTrain.load() == false){
-			sleep();
-			continue;
-		}
+		//if(allowTrain.load() == false){
+		//	sleep();
+		//	continue;
+		//}
 		VLOG_EVERY_N(ln, 1) << "Iteration " << iter << ": calculate delta";
 		Timer tmr;
 		bfDelta = trainer.batchDelta(dataPointer, localBatchSize, true);
@@ -306,22 +302,31 @@ void Worker::asyncProcess()
 
 void Worker::fsbInit()
 {
-	regDSPProcess(MType::DParameter, localCBBinder(&Worker::handleParameterFsb));
+	regDSPProcess(MType::DParameter, localCBBinder(&Worker::handleParameter));
 }
 
 void Worker::fsbProcess()
 {
+	localBatchSize = trainer.pd->size();
+	const size_t n = model.paramWidth();
 	while(!exitTrain){
-		if(allowTrain == false){
-			sleep();
-			continue;
-		}
+		//if(allowTrain == false){
+		//	sleep();
+		//	continue;
+		//}
 		VLOG_EVERY_N(ln, 1) << "Iteration " << iter << ": calculate delta";
 		Timer tmr;
-		size_t cnt;
-		// try to use localBatchSize data-points, the actual usage is returned via cnt 
-		tie(cnt, bfDelta) = trainer.batchDelta(allowTrain, dataPointer, localBatchSize, true);
-		updatePointer(cnt);
+		size_t cnt = 0;
+		bfDelta.assign(n, 0.0);
+		while (exitTrain == false && allowTrain) {
+			vector<double> tmp;
+			size_t c;
+			// try to use localBatchSize data-points, the actual usage is returned via cnt
+			tie(c, tmp) = trainer.batchDelta(allowTrain, dataPointer, localBatchSize, true);
+			accumulateDelta(tmp);
+			updatePointer(c);
+			cnt += c;
+		}
 		stat.t_dlt_calc += tmr.elapseSd();
 		VLOG_EVERY_N(ln, 2) << "  calculate delta with " << cnt << " data points";
 		VLOG_EVERY_N(ln, 2) << "  send delta";
@@ -332,6 +337,7 @@ void Worker::fsbProcess()
 		}
 		VLOG_EVERY_N(ln, 2) << "  wait for new parameter";
 		waitParameter();
+		resumeTrain();
 		if(exitTrain==true){
 			break;
 		}
@@ -374,8 +380,7 @@ void Worker::fabProcess()
 			//DVLOG(3) <<"tmp: "<< tmp;
 			VLOG_EVERY_N(ln, 2) << "  calculate delta with " << cnt << " data points, left: " << left;
 			if(cnt != 0){
-				for(size_t i = 0; i < n; ++i)
-					bfDelta[i] += tmp[i];
+				accumulateDelta(tmp);
 			}
 			stat.t_dlt_calc += tmr.elapseSd();
 			tmr.restart();
@@ -403,6 +408,7 @@ void Worker::updatePointer(const size_t used)
 	dataPointer += used;
 	if(dataPointer >= trainer.pd->size())
 		dataPointer = 0;
+	stat.n_point += used;
 }
 
 void Worker::sendOnline()
@@ -440,6 +446,12 @@ void Worker::registerHandlers()
 	//addRPHAnySU(MType::CWorkers, suOnline);
 	//addRPHAnySU(MType::DParameter, suParam);
 	addRPHAnySU(MType::CXLength, suXlength);
+}
+
+void Worker::accumulateDelta(const std::vector<double>& delta)
+{
+	for (size_t i = 0; i < delta.size(); ++i)
+		bfDelta[i] += delta[i];
 }
 
 void Worker::sendDelta(std::vector<double>& delta)
@@ -547,21 +559,6 @@ void Worker::handleParameter(const std::string & data, const RPCInfo & info)
 	bufferParameter(p);
 	suParam.notify();
 	//sendReply(info);
-	++stat.n_par_recv;
-}
-
-void Worker::handleParameterFsb(const std::string & data, const RPCInfo & info)
-{
-	Timer tmr;
-	auto weights = deserialize<vector<double>>(data);
-	stat.t_data_deserial += tmr.elapseSd();
-	Parameter p;
-	p.set(move(weights));
-	bufferParameter(p);
-	suParam.notify();
-	//sendReply(info);
-	// continue training
-	resumeTrain();
 	++stat.n_par_recv;
 }
 

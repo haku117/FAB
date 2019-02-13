@@ -15,6 +15,11 @@ void Runner::sleep() {
 	this_thread::sleep_for(d);
 }
 
+void Runner::sleep(double seconds) {
+	static auto d = chrono::duration<double>(seconds);
+	this_thread::sleep_for(d);
+}
+
 void Runner::startMsgLoop(const std::string& name){
 	running = true;
 //	tmsg = thread(bind(&Runner::msgLoop, this, name));
@@ -65,6 +70,10 @@ void Runner::finishStat()
 	stat.b_net_recv = net->stat_recv_byte;
 	stat.t_net_recv= net->stat_recv_time;
 	// stat.t_data_deserial is set in each handler function
+
+	stat.n_iter = iter;
+	stat.t_smy_work = stat.t_dlt_calc + stat.t_par_calc;
+	stat.t_smy_wait = stat.t_dlt_wait + stat.t_par_wait;
 }
 
 void Runner::showStat() const
@@ -74,14 +83,17 @@ void Runner::showStat() const
 		<< "\ttime-net-send: " << stat.t_net_send << "\ttime-data-serialize: " << stat.t_data_serial
 		<< "\n"
 		<< "num-net-recv: " << stat.n_net_recv << "\tbyte-net-recv: " << stat.b_net_recv
-		<< "\ttime-net-recv: " << stat.t_net_recv << "\ttime-data-deserialize: "<< stat.t_data_deserial
+		<< "\ttime-net-recv: " << stat.t_net_recv << "\ttime-data-deserialize: " << stat.t_data_deserial
 		<< "\n"
 		<< "num-dlt-send: " << stat.n_dlt_send << "\tnum-dlt-recv: " << stat.n_dlt_recv 
 		<< "\ttime-dlt-calc: " << stat.t_dlt_calc << "\ttime-dlt-wait: " << stat.t_dlt_wait
 		<< "\tnum-data-proc: " << stat.n_data_proc
 		<< "\n"
 		<< "num-par-send: " << stat.n_par_send << "\tnum-par-recv: " << stat.n_par_recv
-		<< "\ttime-par-calc: " << stat.t_par_calc << "\ttime-par-wait: " << stat.t_par_wait;
+		<< "\ttime-par-calc: " << stat.t_par_calc << "\ttime-par-wait: " << stat.t_par_wait
+		<< "\n"
+		<< "num-iteration: " << stat.n_iter << "\tnum-data-point: " << stat.n_point
+		<< "\ttime-total-work: " << stat.t_smy_work << "\ttime-total-wait: " << stat.t_smy_wait;
 }
 
 void Runner::msgPausePush(){

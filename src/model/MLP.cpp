@@ -1,5 +1,5 @@
 #include "MLP.h"
-#include "mathfunc.h"
+#include "math/activation_func.h"
 #include "util/Util.h"
 #include <cmath>
 #include <stdexcept>
