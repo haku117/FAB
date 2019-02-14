@@ -1,5 +1,5 @@
 #include "Kmeans.h"
-#include "logging/logging.h"
+// #include "logging/logging.h"
 #include <cmath>
 #include <stdexcept>
 using namespace std;
@@ -78,7 +78,7 @@ double Kmeans::loss(
 	const std::vector<double>& pred, const std::vector<double>& label) const
 {
 	if (pred.size() != 2){
-		DVLOG(1) << "Incorrect pred loss for Kmeans " << pred;
+		// DVLOG(1) << "Incorrect pred loss for Kmeans " << pred;
 		return MAX_LOSS;
 	}
 	else  

@@ -25,7 +25,7 @@ std::vector<double> GD::batchDelta(const size_t start, const size_t cnt, const b
 	size_t nx = pm->paramWidth();
 	vector<double> grad(nx, 0.0);
 	for(size_t i = start; i < end; ++i){
-		auto g = pm->gradient(pd->get(i), &(z.at(i)));
+		auto g = pm->gradient(pd->get(i), &(z[i]));
 		for(size_t j = 0; j < nx; ++j)
 			grad[j] += g[j];
 	}
@@ -52,7 +52,7 @@ std::pair<size_t, std::vector<double>> GD::batchDelta(
 	for(i = start; i < end && cond.load(); ++i){
 		// auto g = pm->gradient(pd->get(i));
 		// vector<int>* zi = &(z.at(i));
-		auto g = pm->gradient(pd->get(i), &(z.at(i)));
+		auto g = pm->gradient(pd->get(i), &(z[i]));
 		for(size_t j = 0; j < nx; ++j)
 			grad[j] += g[j];
 	}

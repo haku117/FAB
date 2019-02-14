@@ -1,5 +1,5 @@
 #include "Trainer.h"
-#include "logging/logging.h"
+// #include "logging/logging.h"
 using namespace std;
 
 Trainer::Trainer(){
@@ -21,13 +21,17 @@ void Trainer::bindDataset(const DataHolder* pd){
 	}
 }
 
+void Trainer::init(){
+	
+}
+
 /// initialize the local state Z
 void Trainer::initState(){
 	int xlen = pd->size();
 	int dim = pm->getKernel()->lengthState();
 	std::vector<std::vector<int> > matrix(xlen, std::vector<int>(dim, -1));
 	z = move(matrix);
-	VLOG(1) << "initalize local state Z: " << z.size(); 
+	// VLOG(1) << "initalize local state Z: " << z.size(); 
 }
 
 double Trainer::loss() const {

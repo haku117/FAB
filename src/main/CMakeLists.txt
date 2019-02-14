@@ -1,10 +1,10 @@
 set(HEADERS
 	func.h
-	ParameterIO.h
+	#ParameterIO.h
 )
 set(SOURCES
 	func.cpp
-	ParameterIO.cpp
+	#ParameterIO.cpp
 )
 # exe: main
 add_executable(main main.cpp
@@ -15,14 +15,14 @@ target_link_libraries(main
 	#${Boost_PROGRAM_OPTIONS_LIBRARY}
 )
 # exe: postprocess
-add_executable(postprocess postprocess.cpp
-	${HEADERS} ${SOURCES})
-target_link_libraries(postprocess
-	common data model train util
-)
+#add_executable(postprocess postprocess.cpp
+#	${HEADERS} ${SOURCES})
+#target_link_libraries(postprocess
+#	common data model train util
+#)
 # exe: generate
-add_executable(generate generate.cpp
-	${HEADERS} ${SOURCES})
-target_link_libraries(generate
-	model util
-)
+#add_executable(generate generate.cpp
+#	${HEADERS} ${SOURCES})
+#target_link_libraries(generate
+#	model util
+#)

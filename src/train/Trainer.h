@@ -30,9 +30,10 @@ public:
 
 	// calculate the delta values to update the model parameter
 	// <avg> is set to true by default. Note that it may not be used for some models
-	virtual std::vector<double> batchDelta(const size_t start, const size_t cnt, const bool avg = true);
+	virtual std::vector<double> batchDelta(const size_t start, const size_t cnt, const bool avg = true) = 0;
+	
 	virtual std::pair<size_t, std::vector<double>> batchDelta(
-		std::atomic<bool>& cond, const size_t start, const size_t cnt, const bool avg = true);
+		std::atomic<bool>& cond, const size_t start, const size_t cnt, const bool avg = true) = 0;
 
 	// apply the delta values to the model parameter, parameter += delat*factor
 	virtual void applyDelta(const std::vector<double>& delta, const double factor = 1.0);

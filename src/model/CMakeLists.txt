@@ -3,11 +3,11 @@ set(HEADERS
 	KernelFactory.h
 	Parameter.h
 	Model.h
-	LogisticRegression.h
-	MLP.h
-	MLPProxy.h
-	CNN.h
-	CNNProxy.h
+	#LogisticRegression.h
+	#MLP.h
+	#MLPProxy.h
+	#CNN.h
+	#CNNProxy.h
 	Kmeans.h
 )
 set(SOURCES
@@ -15,11 +15,11 @@ set(SOURCES
 	KernelFactory.cpp
 	Parameter.cpp
 	Model.cpp
-	LogisticRegression.cpp
-	MLP.cpp
-	MLPProxy.cpp
-	CNN.cpp
-	CNNProxy.cpp
+	#LogisticRegression.cpp
+	#MLP.cpp
+	#MLPProxy.cpp
+	#CNN.cpp
+	#CNNProxy.cpp
 	Kmeans.cpp
 )
 add_library(model
