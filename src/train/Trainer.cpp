@@ -1,12 +1,33 @@
 #include "Trainer.h"
+#include "logging/logging.h"
 using namespace std;
+
+Trainer::Trainer(){
+	this->pm = nullptr;
+	this->pd = nullptr;
+}
 
 void Trainer::bindModel(Model* pm){
 	this->pm = pm;
+	if(pd != nullptr && pm->getKernel()->lengthState() != 0){
+		initState();
+	}
 }
 
 void Trainer::bindDataset(const DataHolder* pd){
 	this->pd = pd;
+	if(pm != nullptr && pm->getKernel()->lengthState() != 0){
+		initState();
+	}
+}
+
+/// initialize the local state Z
+void Trainer::initState(){
+	int xlen = pd->size();
+	int dim = pm->getKernel()->lengthState();
+	std::vector<std::vector<int> > matrix(xlen, std::vector<int>(dim, -1));
+	z = move(matrix);
+	VLOG(1) << "initalize local state Z: " << z.size(); 
 }
 
 double Trainer::loss() const {

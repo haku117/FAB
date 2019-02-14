@@ -11,9 +11,9 @@ public:
 	double getRate() const;
 
 	virtual std::vector<double> batchDelta(
-		const size_t start, const size_t cnt, const bool avg = true) const;
+		const size_t start, const size_t cnt, const bool avg = true);
 	virtual std::pair<size_t, std::vector<double>> batchDelta(
-		std::atomic<bool>& cond, const size_t start, const size_t cnt, const bool avg = true) const;
-
+		std::atomic<bool>& cond, const size_t start, const size_t cnt, const bool avg = true);
+	///// temprate remove const for 2 functions
 };
 

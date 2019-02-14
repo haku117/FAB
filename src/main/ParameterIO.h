@@ -22,4 +22,7 @@ private:
 	// CNN
 	void writeCNN(std::ostream& os, const std::vector<double>& w);
 	std::pair<std::string, std::vector<double>> loadCNN(std::istream& is);
+	// KMeans
+	void writeKM(std::ostream& os, const std::vector<double>& w);
+	std::pair<std::string, std::vector<double>> loadKM(std::istream& is);
 };

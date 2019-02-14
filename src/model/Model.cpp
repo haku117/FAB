@@ -34,6 +34,15 @@ void Model::init(const std::string & name, const int nx, const std::string & par
 	param.init(n, 0.01, 0.01, seed);
 }
 
+/// for km or specific param initalization
+void Model::init(const std::string & name, const int nx, const std::string & paramKern, 
+				const std::vector<double>& pm)
+{
+	generateKernel(name);
+	kern->init(nx, paramKern);
+	param.init(pm);
+}
+
 void Model::clear()
 {
 	delete kern;
@@ -101,9 +110,9 @@ double Model::loss(const std::vector<double>& pred, const std::vector<double>& l
 	return kern->loss(pred, label);
 }
 
-std::vector<double> Model::gradient(const DataPoint & dp) const
+std::vector<double> Model::gradient(const DataPoint & dp, std::vector<int>* z) const
 {
-	return kern->gradient(dp.x, param.weights, dp.y);
+	return kern->gradient(dp.x, param.weights, dp.y, z);
 }
 
 void Model::generateKernel(const std::string & name)

@@ -53,6 +53,7 @@ void Worker::init(const Option* opt, const size_t lid)
 	logName = "W"+to_string(localID);
 	setLogThreadName(logName);
 
+	/// for dc cache
 	deltaIndx0.assign(nWorker, false);
 	deltaIndx1.assign(nWorker, false);
 
@@ -184,10 +185,6 @@ void Worker::dcSyncProcess()
 void Worker::dcFsbProcess()
 {	
 	while(!exitTrain){
-		// if(allowTrain.load() == false){
-		// 	sleep();
-		// 	continue;
-		// }
 		VLOG_EVERY_N(ln, 1) << "Iteration " << iter << ": calculate delta";
 		Timer tmr;
 		size_t cnt;
@@ -197,7 +194,6 @@ void Worker::dcFsbProcess()
 		tie(cnt, lclDelta) = trainer.batchDelta(allowTrain, dataPointer, localBatchSize, true);
 		updatePointer(cnt);
 		VLOG_EVERY_N(ln, 2) << "  calculate delta with " << cnt << " data points";
-		stat.n_data_proc += cnt
 		stat.t_dlt_calc+= tmr.elapseSd();
 		VLOG_EVERY_N(ln, 2) << "  send delta";
 
@@ -207,7 +203,6 @@ void Worker::dcFsbProcess()
 		}
 		broadcastDelta(lclDelta);
 		accumulateDelta(lclDelta, (int)localID);
-		// rph.input(typeDDeltaAll, (int)localID);
 
 		if(exitTrain==true){
 			break;
@@ -423,7 +418,19 @@ void Worker::waitWorkerList()
 
 void Worker::sendXLength()
 {
-	net->send(masterNID, MType::CXLength, trainer.pd->xlength());
+	if(opt->algorighm == "km") {
+		/// send k dp as candidate of global centroids
+		std::vector<double> kCentroids;
+		int k = stoi(opt->algParam);
+		for(int i = 0; i < k; i++){
+			std::vector<double> OneDp = trainer.pd->get(i).x;
+			kCentroids.insert(kCentroids.end(), OneDp.begin(), OneDp.end());
+			kCentroids.push_back(0); // for cluster counts
+		}
+		net->send(masterNID, MType::CXLength, kCentroids);
+	}
+	else
+		net->send(masterNID, MType::CXLength, trainer.pd->xlength());
 	suXlength.wait();
 }
 

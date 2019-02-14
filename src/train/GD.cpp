@@ -17,7 +17,7 @@ double GD::getRate() const {
 	return rate;
 }
 
-std::vector<double> GD::batchDelta(const size_t start, const size_t cnt, const bool avg) const
+std::vector<double> GD::batchDelta(const size_t start, const size_t cnt, const bool avg)
 {
 	size_t end = start + cnt;
 	if(end > pd->size())
@@ -25,7 +25,7 @@ std::vector<double> GD::batchDelta(const size_t start, const size_t cnt, const b
 	size_t nx = pm->paramWidth();
 	vector<double> grad(nx, 0.0);
 	for(size_t i = start; i < end; ++i){
-		auto g = pm->gradient(pd->get(i));
+		auto g = pm->gradient(pd->get(i), &(z.at(i)));
 		for(size_t j = 0; j < nx; ++j)
 			grad[j] += g[j];
 	}
@@ -41,7 +41,7 @@ std::vector<double> GD::batchDelta(const size_t start, const size_t cnt, const b
 }
 
 std::pair<size_t, std::vector<double>> GD::batchDelta(
-	std::atomic<bool>& cond, const size_t start, const size_t cnt, const bool avg) const
+	std::atomic<bool>& cond, const size_t start, const size_t cnt, const bool avg)
 {
 	size_t end = start + cnt;
 	if(end > pd->size())
@@ -50,7 +50,9 @@ std::pair<size_t, std::vector<double>> GD::batchDelta(
 	vector<double> grad(nx, 0.0);
 	size_t i;
 	for(i = start; i < end && cond.load(); ++i){
-		auto g = pm->gradient(pd->get(i));
+		// auto g = pm->gradient(pd->get(i));
+		// vector<int>* zi = &(z.at(i));
+		auto g = pm->gradient(pd->get(i), &(z.at(i)));
 		for(size_t j = 0; j < nx; ++j)
 			grad[j] += g[j];
 	}

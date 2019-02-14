@@ -11,6 +11,7 @@ Master::Master() : Runner() {
 	trainer.bindModel(&model);
 	factorDelta = 1.0;
 	nx = 0;
+	// candiParam;
 	iter = 0;
 	nUpdate = 0;
 	lastArchIter = 0;
@@ -43,7 +44,7 @@ void Master::init(const Option* opt, const size_t lid)
 	} else if(opt->mode == "fsb"){
 		fsbInit();
 		// TODO: add specific option for interval estimator
-		ie.init(nWorker, { "fixed", to_string(opt->arvTime) });
+		ie.init(nWorker, { "fixed", to_string(opt->arvTime/opt->batchSize) });
 	} else if(opt->mode == "fab"){
 		fabInit();
 	} else if(opt->mode == "dcsync"){
@@ -307,7 +308,11 @@ void Master::initializeParameter()
 {
 	suXLength.wait();
 	suXLength.reset();
-	model.init(opt->algorighm, nx, opt->algParam, 0.01);
+	if(opt->algorighm == "km") {
+		model.init(opt->algorighm, nx, opt->algParam, candiParam);
+	}
+	else
+		model.init(opt->algorighm, nx, opt->algParam, 0.01);
 }
 
 void Master::sendParameter(const int target)
@@ -429,13 +434,29 @@ void Master::handleOnline(const std::string & data, const RPCInfo & info)
 
 void Master::handleXLength(const std::string& data, const RPCInfo& info){
 	Timer tmr;
-	size_t d = deserialize<size_t>(data);
-	stat.t_data_deserial += tmr.elapseSd();
 	int source = wm.nid2lid(info.source);
-	if(nx == 0){
-		nx = d;
-	} else if(nx != d){
-		LOG(FATAL)<<"dataset on "<<source<<" does not match with others";
+
+	if(opt->algorighm == "km") {
+		std::vector<double> centroids = deserialize<std::vector<double>>(data);
+		stat.t_data_deserial += tmr.elapseSd();
+		int k = stoi(opt->algParam);
+		if(nx == 0){
+			nx = centroids.size()/k;
+		} else if(nx != centroids.size()/k){
+			LOG(FATAL)<<"dataset on "<<source<<" does not match with others";
+		}
+		if (candiParam.empty()){
+			candiParam = move(centroids);
+		}
+	} 
+	else {
+		size_t d = deserialize<size_t>(data);
+		stat.t_data_deserial += tmr.elapseSd();
+		if(nx == 0){
+			nx = d;
+		} else if(nx != d){
+			LOG(FATAL)<<"dataset on "<<source<<" does not match with others";
+		}
 	}
 	rph.input(MType::CXLength, source);
 	sendReply(info);

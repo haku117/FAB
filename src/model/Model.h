@@ -17,6 +17,9 @@ public:
 	void init(const std::string& name, const int nx, const std::string& paramKern, const double w0);
 	// initialize kernel, initialize parameter using random value ~ N(0.01, 0.01)
 	void init(const std::string& name, const int nx, const std::string& paramKern, const unsigned seed);
+	// initialize kernel, initialize parameter using given param (for km??)
+	void init(const std::string& name, const int nx, const std::string& paramKern,
+			const std::vector<double>& pm);
 	void clear();
 	std::string kernelName() const;
 
@@ -38,7 +41,8 @@ public:
 	int classify(const double p) const;
 	double loss(const DataPoint& dp) const;
 	double loss(const std::vector<double>& pred, const std::vector<double>& label) const;
-	std::vector<double> gradient(const DataPoint& dp) const;
+	// std::vector<double> gradient(const DataPoint& dp) const;
+	std::vector<double> gradient(const DataPoint& dp, std::vector<int>* z) const;
 
 private:
 	void generateKernel(const std::string& name);

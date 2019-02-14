@@ -62,8 +62,8 @@ double LogisticRegression::loss(
 		return -cost;
 }
 
-std::vector<double> LogisticRegression::gradient(
-	const std::vector<double>& x, const std::vector<double>& w, const std::vector<double>& y) const
+std::vector<double> LogisticRegression::gradient(const std::vector<double>& x, const std::vector<double>& w, 
+		const std::vector<double>& y, std::vector<int>* z = nullptr) const
 {
 	// s'(x) = s(x)*(1-s(x))
 	// c'(x) = x*(s(x) - y)

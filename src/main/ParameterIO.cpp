@@ -7,7 +7,7 @@ using namespace std;
 ParameterIO::ParameterIO(const std::string & name, const std::string & param)
 	: name(name), param(param)
 {
-	vector<string> supported = { "lr", "mlp", "cnn" };
+	vector<string> supported = { "lr", "mlp", "cnn", "km"};
 	for(char& ch : this->name){
 		if(ch >= 'A' && ch <= 'Z')
 			ch += 'a' - 'A';
@@ -32,6 +32,8 @@ void ParameterIO::write(std::ostream & os, const std::vector<double>& w)
 		return writeMLP(os, w);
 	} else if(name == "cnn"){
 		return writeCNN(os, w);
+	} else if(name == "km"){
+		return writeKM(os, w);
 	}
 }
 
@@ -43,6 +45,8 @@ std::pair<std::string, std::vector<double>> ParameterIO::load(std::istream & is)
 		return loadMLP(is);
 	} else if(name == "cnn"){
 		return loadCNN(is);
+	} else if(name == "km"){
+		return loadKM(is);
 	}
 	return std::pair<std::string, std::vector<double>>();
 }
@@ -136,3 +140,21 @@ std::pair<std::string, std::vector<double>> ParameterIO::loadCNN(std::istream & 
 	return make_pair(move(param), move(vec));
 }
 
+// -------- KMeans -------- ???????
+
+void ParameterIO::writeKM(std::ostream & os, const std::vector<double>& w)
+{
+	for(size_t i = 0; i < w.size() - 1; ++i){
+		os << param[i] << ",";
+	}
+	os << w.back() << endl;
+}
+
+std::pair<std::string, std::vector<double>> ParameterIO::loadKM(std::istream & is)
+{
+	string line;
+	getline(is, line);
+	vector<double> vec = getDoubleList(line);
+	string param = to_string(vec.size() - 1);
+	return make_pair(move(param), move(vec));
+}

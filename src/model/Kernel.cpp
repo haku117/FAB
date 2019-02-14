@@ -10,3 +10,8 @@ void Kernel::initBasic(const int xlength, const std::string& param){
 std::string Kernel::parameter() const{
 	return param;
 }
+
+/// length of the local state Z
+int Kernel::lengthState() const{
+	return name() == "km" ? 1 : 0;
+}

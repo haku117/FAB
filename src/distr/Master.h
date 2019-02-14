@@ -68,7 +68,8 @@ public:
 
 private:
 	Parameter param;
-	std::vector<double>  bfDelta;
+	std::vector<double> bfDelta;
+	std::vector<double> candiParam;
 
 	IDMapper wm; // worker id mapper
 	double factorDelta;

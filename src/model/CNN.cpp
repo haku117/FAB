@@ -97,8 +97,8 @@ double CNN::loss(const std::vector<double>& pred, const std::vector<double>& lab
 	return res;
 }
 
-std::vector<double> CNN::gradient(
-	const std::vector<double>& x, const std::vector<double>& w, const std::vector<double>& y) const
+std::vector<double> CNN::gradient(const std::vector<double>& x, const std::vector<double>& w, 
+		const std::vector<double>& y, std::vector<int>* z) const
 {
 	// forward
 	vector<vector<vector<double>>> mid; // layer -> feature -> value

@@ -11,9 +11,10 @@ public:
 	const DataHolder* pd;
 
 	/// local stats for each data point
-	std::vector<int> stats;
+	std::vector<std::vector<int> > z;
 
 public:
+	Trainer();
 	void bindModel(Model* pm);
 	void bindDataset(const DataHolder* pd); /// 
 
@@ -29,11 +30,15 @@ public:
 
 	// calculate the delta values to update the model parameter
 	// <avg> is set to true by default. Note that it may not be used for some models
-	virtual std::vector<double> batchDelta(const size_t start, const size_t cnt, const bool avg = true) const = 0;
+	virtual std::vector<double> batchDelta(const size_t start, const size_t cnt, const bool avg = true);
 	virtual std::pair<size_t, std::vector<double>> batchDelta(
-		std::atomic<bool>& cond, const size_t start, const size_t cnt, const bool avg = true) const = 0;
+		std::atomic<bool>& cond, const size_t start, const size_t cnt, const bool avg = true);
 
 	// apply the delta values to the model parameter, parameter += delat*factor
 	virtual void applyDelta(const std::vector<double>& delta, const double factor = 1.0);
+
+private:
+	void initState(); /// initialize local state Z
+
 };
 
