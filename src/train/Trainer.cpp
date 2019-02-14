@@ -21,9 +21,9 @@ void Trainer::bindDataset(const DataHolder* pd){
 	}
 }
 
-void Trainer::init(){
-	
-}
+// void Trainer::init(){
+
+// }
 
 /// initialize the local state Z
 void Trainer::initState(){
