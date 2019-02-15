@@ -8,3 +8,7 @@ set(SOURCES
 )
 add_library(train
 	${HEADERS} ${SOURCES})
+
+target_link_libraries(train
+	logging
+)
