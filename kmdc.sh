@@ -1,7 +1,7 @@
 MODE="sync" # async fsb fab"
 
-# DATADIR=/home/gzhao/mnil/FAB/data
-DATADIR=/Users/guoyizhao/Documents/GitHub/data
+DATADIR=/home/gzhao/mnil/FAB/data
+#DATADIR=/Users/guoyizhao/Documents/GitHub/data
 #DATADIR=/tmp/tzhou/data
 RESBASEDIR=result/
 SCRBASEDIR=score/
@@ -21,7 +21,7 @@ DSIZE=1m
 BS=100 # 1000 10000
 LR=0.01 # 0.01
 ITER=10k
-TIME=20
+TIME=10
 
 function set_dir(){
   export RESDIR=$RESBASEDIR/$PARAM-$DSIZE/$BS-$LR
@@ -38,7 +38,7 @@ set_dir
 i=1
 
 for m in $MODE; do echo $i-$m -- $(date);
-mpirun -n $((i+1)) src/main/main $m $ALG $PARAM $DATADIR/cars-d.csv $RESDIR/$m-$i.csv -1 $YLIST 0 $LR $BS $ITER $TIME 1000 0.5 50 --v=1 #> $LOGDIR/$m-$i;
+mpirun -n $((i+1)) src/main/main $m $ALG $PARAM $DATADIR/cars-d.csv $RESDIR/$m-$i.csv -1 $YLIST 1 $LR $BS $ITER $TIME 1000 0.5 100 --v=3 #> $LOGDIR/$m-$i;
 #done
 
 #cd ~/Code/FSB/lr-cpp/build

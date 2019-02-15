@@ -24,4 +24,4 @@ set(SOURCES
 )
 add_library(model
 	${HEADERS} ${SOURCES})
-target_link_libraries(model math data util)
+target_link_libraries(model math data util logging)

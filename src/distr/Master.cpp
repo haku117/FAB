@@ -8,7 +8,7 @@ using namespace std;
 Master::Master() : Runner() {
 	typeDDeltaAny = MType::DDelta;
 	typeDDeltaAll = 128 + MType::DDelta;
-	trainer.bindModel(&model);
+	
 	factorDelta = 1.0;
 	nx = 0;
 	// candiParam;
@@ -65,6 +65,8 @@ void Master::run()
 	broadcastWorkerList();
 	LOG(INFO)<<"Waiting x-length to initialize parameters";
 	initializeParameter();
+	trainer.bindModel(&model);/// move
+	
 	clearAccumulatedDelta();
 	LOG(INFO) << "Got x-length = " << nx;
 	if(!opt->fnOutput.empty()){

@@ -31,8 +31,6 @@ Worker::Worker() : Runner() {
 	//bufferDelta = NULL;
 	bfDeltaCnt = 0;
 
-	trainer.bindModel(&model);
-
 	suOnline.reset();
 	suParam.reset();
 	suXlength.reset();
@@ -76,13 +74,13 @@ void Worker::bindDataset(const DataHolder* pdh)
 {
 	VLOG(1) << "Bind dataset with " << pdh->size() << " data points";
 	trainer.bindDataset(pdh);
+	VLOG(1) << "finish Bind dataset";
 	// separated the mini-batch among all workers
 	localBatchSize = opt->batchSize / nWorker;
 	if(opt->batchSize % nWorker > localID)
 		++localBatchSize;
 	if(localBatchSize <= 0)
 		localBatchSize = 1;
-	VLOG(1) << "finish Bind dataset";
 }
 
 void Worker::run()
@@ -103,6 +101,8 @@ void Worker::run()
 	waitParameter();
 	DLOG(INFO) << "got init parameter";
 	model.init(opt->algorighm, trainer.pd->xlength(), opt->algParam);
+	trainer.bindModel(&model); /// move
+
 	applyBufferParameter();
 	resumeTrain();
 

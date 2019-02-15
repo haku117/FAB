@@ -1,4 +1,4 @@
-MODE="dcfsb" # async fsb fab"
+MODE="sync" # async fsb fab"
 
 DATADIR=/home/gzhao/mnil/FAB/data
 #DATADIR=/tmp/tzhou/data
@@ -17,7 +17,7 @@ YLIST=10
 DSIZE=1m
 #DF=$ALG-$PARAM-$DSIZE-d.csv
 
-BS=50000 # 1000 10000
+BS=15000 # 1000 10000
 LR=0.01 # 0.01
 ITER=100k
 TIME=20
@@ -34,10 +34,10 @@ function set_dir(){
 set_dir
 
 #m=sync
-i=16
+i=2
 
 for m in $MODE; do echo $i-$m -- $(date);
-mpirun -n $((i+1)) -hostfile myhosts src/main/main $m $ALG $PARAM $DATADIR/$ALG-$PARAM-$DSIZE-d.csv $RESDIR/$m-$i.csv -1 $YLIST 0 $LR $BS $ITER $TIME 1000 0.5 50 --v=1 #> $LOGDIR/$m-$i;
+mpirun -n $((i+1)) src/main/main $m $ALG $PARAM $DATADIR/$ALG-$PARAM-$DSIZE-d.csv $RESDIR/$m-$i.csv -1 $YLIST 0 $LR $BS $ITER $TIME 1000 0.5 1 --v=3 #> $LOGDIR/$m-$i;
 #done
 
 #cd ~/Code/FSB/lr-cpp/build
@@ -57,8 +57,8 @@ mpirun -n $((i+1)) -hostfile myhosts src/main/main $m $ALG $PARAM $DATADIR/$ALG-
 #PATH=$PATH:/home/tzhou/Code/FSB/lr-cpp/build/Release/src/main
 
 #for i in 1 2 4 8; do for m in $MODE; do 
-echo pp $i-$m -- $(date);
-src/main/postprocess $ALG $PARAM  $RESDIR/$m-$i.csv $DATADIR/$ALG-$PARAM-$DSIZE-d.csv -1 $YLIST $DATADIR/$ALG-$PARAM-$DSIZE-p.txt $SCRDIR/$m-$i.txt 0 0
+#echo pp $i-$m -- $(date);
+#src/main/postprocess $ALG $PARAM  $RESDIR/$m-$i.csv $DATADIR/$ALG-$PARAM-$DSIZE-d.csv -1 $YLIST $DATADIR/$ALG-$PARAM-$DSIZE-p.txt $SCRDIR/$m-$i.txt 0 0
 #done done
 
 done

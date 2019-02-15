@@ -8,17 +8,18 @@ Trainer::Trainer(){
 }
 
 void Trainer::bindModel(Model* pm){
-	VLOG(3) << "bind model "; 
 	this->pm = pm;
-	if(pd != nullptr && pm->getKernel()->lengthState() != 0){
+	//VLOG(3) << "bind model " << pm->kernelName(); 
+	if(this->pd != nullptr) { //&& this->pm->getKernel()->lengthState() != 0){
 		initState();
 	}
 }
 
 void Trainer::bindDataset(const DataHolder* pd){
-	VLOG(3) << "bind dataset "; 
+	//VLOG(3) << "bind dataset data[0]: " << pd->get(0).x << " -> " << pm->getKernel()->lengthState(); 
+	// VLOG(3) << "pm name " << this->pm->kernelName();
 	this->pd = pd;
-	if(pm != nullptr && pm->getKernel()->lengthState() != 0){
+	if(this->pm != nullptr) { // && pm->getKernel()->lengthState() != 0){
 		initState();
 	}
 }
@@ -30,10 +31,10 @@ void Trainer::bindDataset(const DataHolder* pd){
 /// initialize the local state Z
 void Trainer::initState(){
 	int xlen = pd->size();
-	int dim = pm->getKernel()->lengthState();
+	int dim = 1;//this.pm->getKernel()->lengthState();
+	VLOG(3) << "initalize local state Z: " << xlen << " " << dim;
 	std::vector<std::vector<int> > matrix(xlen, std::vector<int>(dim, -1));
 	z = move(matrix);
-	VLOG(3) << "initalize local state Z: " << z.size(); 
 }
 
 double Trainer::loss() const {

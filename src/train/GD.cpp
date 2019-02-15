@@ -1,4 +1,5 @@
 #include "GD.h"
+#include "logging/logging.h"
 using namespace std;
 
 GD::GD()
@@ -25,6 +26,7 @@ std::vector<double> GD::batchDelta(const size_t start, const size_t cnt, const b
 	size_t nx = pm->paramWidth();
 	vector<double> grad(nx, 0.0);
 	for(size_t i = start; i < end; ++i){
+		VLOG(5) << "cal grad for i " << i << " z " << z[i];
 		auto g = pm->gradient(pd->get(i), &(z[i]));
 		for(size_t j = 0; j < nx; ++j)
 			grad[j] += g[j];

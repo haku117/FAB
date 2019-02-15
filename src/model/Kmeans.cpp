@@ -1,5 +1,5 @@
 #include "Kmeans.h"
-// #include "logging/logging.h"
+#include "logging/logging.h"
 #include <cmath>
 #include <stdexcept>
 using namespace std;
@@ -96,28 +96,36 @@ std::vector<double> Kmeans::gradient(const std::vector<double>& x, const std::ve
 {
 	std::vector<double> newZ = predict(x, w);
 	int id = (int) newZ[0];
-
-	vector<vector<double> > delta(k, vector<double>(xlength+1));
 	int oldID = (*z)[0];
+
+	VLOG(5) << "KM grad newZ " << id << " old Z " << oldID << " xlen " << xlength;
+
+	vector<vector<double> > delta(k, vector<double>(xlength+1, 0));
+	// VLOG(5) << "init delta " << delta.size() << "\t" << x;
 	/// compute delta change
 	if (oldID != id){
-		for (int j = 0; j < xlength+1; j++){
+		for (int j = 0; j < xlength; j++){
 			delta[id][j] += x[j];
-			delta[oldID][j] -= x[j];
 		}
 		delta[id][xlength]++;
-		delta[oldID][xlength]--;
+		if(oldID >= 0){
+			for (int j = 0; j < xlength; j++){
+				delta[oldID][j] -= x[j];
+			}
+			delta[oldID][xlength]--;
+		}
 	}
 
+	VLOG(5) << "new delta " << delta;
+
 	vector<double> grad;
-	grad.reserve( k * w.size()); // preallocate memory
+	grad.reserve(w.size()); // preallocate memory
 	for (int i = 0; i < k; i++){
 		grad.insert( grad.end(), delta[i].begin(), delta[i].end() );
 	}
 
-	/// update assignment
+	VLOG(5) << "new grad vector " << grad;
+			/// update assignment
 	(*z)[0] = id;
-
 	return grad;
 }
-
