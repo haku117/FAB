@@ -8,16 +8,16 @@ Trainer::Trainer(){
 }
 
 void Trainer::bindModel(Model* pm){
-	this->pm = pm;
 	VLOG(3) << "bind model "; 
+	this->pm = pm;
 	if(pd != nullptr && pm->getKernel()->lengthState() != 0){
 		initState();
 	}
 }
 
 void Trainer::bindDataset(const DataHolder* pd){
-	this->pd = pd;
 	VLOG(3) << "bind dataset "; 
+	this->pd = pd;
 	if(pm != nullptr && pm->getKernel()->lengthState() != 0){
 		initState();
 	}

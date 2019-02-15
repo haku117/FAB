@@ -82,6 +82,7 @@ void Worker::bindDataset(const DataHolder* pdh)
 		++localBatchSize;
 	if(localBatchSize <= 0)
 		localBatchSize = 1;
+	VLOG(1) << "finish Bind dataset";
 }
 
 void Worker::run()
