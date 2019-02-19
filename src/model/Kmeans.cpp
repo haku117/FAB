@@ -49,7 +49,7 @@ std::vector<double> Kmeans::predict(const std::vector<double>& x,
 	int id = -1;
 	for (int i = 0; i < k; i++){
 		double dist = eudist(x, centroids[i], counts[i]);
-		if (minDist == -1 || dist > minDist){
+		if (minDist == -1 || dist < minDist){
 			minDist = dist;
 			id = i;
 		}
