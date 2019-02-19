@@ -298,31 +298,23 @@ void Worker::asyncProcess()
 
 void Worker::fsbInit()
 {
-	regDSPProcess(MType::DParameter, localCBBinder(&Worker::handleParameter));
+	// regDSPProcess(MType::DParameter, localCBBinder(&Worker::handleParameter));
+	regDSPProcess(MType::DParameter, localCBBinder(&Worker::handleParameterFsb));
 }
 
 void Worker::fsbProcess()
 {
-	localBatchSize = trainer.pd->size();
-	const size_t n = model.paramWidth();
 	while(!exitTrain){
-		//if(allowTrain == false){
-		//	sleep();
-		//	continue;
-		//}
+		if(allowTrain == false){
+			sleep();
+			continue;
+		}
 		VLOG_EVERY_N(ln, 1) << "Iteration " << iter << ": calculate delta";
 		Timer tmr;
-		size_t cnt = 0;
-		bfDelta.assign(n, 0.0);
-		while (exitTrain == false && allowTrain) {
-			vector<double> tmp;
-			size_t c;
-			// try to use localBatchSize data-points, the actual usage is returned via cnt
-			tie(c, tmp) = trainer.batchDelta(allowTrain, dataPointer, localBatchSize, true);
-			accumulateDelta(tmp);
-			updatePointer(c);
-			cnt += c;
-		}
+		size_t cnt;
+		// try to use localBatchSize data-points, the actual usage is returned via cnt 
+		tie(cnt, bfDelta) = trainer.batchDelta(allowTrain, dataPointer, localBatchSize, true);
+		updatePointer(cnt);
 		stat.t_dlt_calc += tmr.elapseSd();
 		VLOG_EVERY_N(ln, 2) << "  calculate delta with " << cnt << " data points";
 		VLOG_EVERY_N(ln, 2) << "  send delta";
@@ -333,17 +325,57 @@ void Worker::fsbProcess()
 		}
 		VLOG_EVERY_N(ln, 2) << "  wait for new parameter";
 		waitParameter();
-		resumeTrain();
 		if(exitTrain==true){
 			break;
 		}
 		stat.t_par_wait += tmr.elapseSd();
 		tmr.restart();
 		applyBufferParameter();
-		resumeTrain();
 		stat.t_par_calc += tmr.elapseSd();
 		++iter;
 	}
+
+	// localBatchSize = trainer.pd->size();
+	// const size_t n = model.paramWidth();
+	// while(!exitTrain){
+	// 	//if(allowTrain == false){
+	// 	//	sleep();
+	// 	//	continue;
+	// 	//}
+	// 	VLOG_EVERY_N(ln, 1) << "Iteration " << iter << ": calculate delta";
+	// 	Timer tmr;
+	// 	size_t cnt = 0;
+	// 	bfDelta.assign(n, 0.0);
+	// 	while (exitTrain == false && allowTrain) {
+	// 		vector<double> tmp;
+	// 		size_t c;
+	// 		// try to use localBatchSize data-points, the actual usage is returned via cnt
+	// 		tie(c, tmp) = trainer.batchDelta(allowTrain, dataPointer, localBatchSize, true);
+	// 		accumulateDelta(tmp);
+	// 		updatePointer(c);
+	// 		cnt += c;
+	// 	}
+	// 	stat.t_dlt_calc += tmr.elapseSd();
+	// 	VLOG_EVERY_N(ln, 2) << "  calculate delta with " << cnt << " data points";
+	// 	VLOG_EVERY_N(ln, 2) << "  send delta";
+	// 	tmr.restart();
+	// 	sendDelta(bfDelta);
+	// 	if(exitTrain==true){
+	// 		break;
+	// 	}
+	// 	VLOG_EVERY_N(ln, 2) << "  wait for new parameter";
+	// 	waitParameter();
+	// 	resumeTrain();
+	// 	if(exitTrain==true){
+	// 		break;
+	// 	}
+	// 	stat.t_par_wait += tmr.elapseSd();
+	// 	tmr.restart();
+	// 	applyBufferParameter();
+	// 	resumeTrain();
+	// 	stat.t_par_calc += tmr.elapseSd();
+	// 	++iter;
+	// }
 }
 
 void Worker::fabInit()
