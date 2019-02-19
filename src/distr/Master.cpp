@@ -45,7 +45,7 @@ void Master::init(const Option* opt, const size_t lid)
 	} else if(opt->mode == "fsb"){
 		fsbInit();
 		// TODO: add specific option for interval estimator
-		ie.init(nWorker, { "fixed", to_string(opt->arvTime/opt->batchSize) });
+		// ie.init(nWorker, { "fixed", to_string(opt->arvTime/opt->batchSize) });
 	} else if(opt->mode == "fab"){
 		fabInit();
 	} else if(opt->mode == "dcsync"){
@@ -145,7 +145,7 @@ void Master::dcProcess()
 
 void Master::syncInit()
 {
-	factorDelta = 1.0 / nWorker;
+	factorDelta = 1.0; // nWorker;
 	regDSPProcess(MType::DDelta, localCBBinder(&Master::handleDelta));
 }
 
@@ -203,8 +203,9 @@ void Master::asyncProcess()
 
 void Master::fsbInit()
 {
-	factorDelta = 1.0 / nWorker;
-	regDSPProcess(MType::DDelta, localCBBinder(&Master::handleDeltaFsb));
+	factorDelta = 1.0; // nWorker;
+	// regDSPProcess(MType::DDelta, localCBBinder(&Master::handleDeltaFsb));
+	regDSPProcess(MType::DDelta, localCBBinder(&Master::handleDelta));
 }
 
 void Master::fsbProcess()
@@ -217,8 +218,9 @@ void Master::fsbProcess()
 			tl = t;
 		}
 		VLOG_EVERY_N(ln, 1)<<"Start iteration: "<<iter;
-		double interval = ie.interval();
-		sleep(interval);
+		waitDeltaFromAny();
+		// double interval = ie.interval();
+		// sleep(interval);
 		VLOG_EVERY_N(ln, 2) << "  Broadcast pause signal";
 		broadcastSignalPause();
 		VLOG_EVERY_N(ln, 2) << "  Waiting for all deltas";
@@ -226,7 +228,7 @@ void Master::fsbProcess()
 		VLOG_EVERY_N(ln, 2) << "  Broadcast new parameters";
 		broadcastParameter();
 		//waitParameterConfirmed();
-		ie.update(bfDelta, interval, tmrTrain.elapseSd());
+		// ie.update(bfDelta, interval, tmrTrain.elapseSd());
 		//VLOG_EVERY_N(ln, 2) << "  Broadcast continue signal";
 		//broadcastSignalContinue();
 		archiveProgress();
