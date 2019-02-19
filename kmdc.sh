@@ -1,7 +1,8 @@
 MODE="sync" # async fsb fab"
 
-DATADIR=/home/gzhao/mnil/FAB/data
+#DATADIR=/home/gzhao/mnil/FAB/data
 #DATADIR=/Users/guoyizhao/Documents/GitHub/data
+DATADIR=/Users/haku/PycharmProjects/KMgen/
 #DATADIR=/tmp/tzhou/data
 RESBASEDIR=result/
 SCRBASEDIR=score/
@@ -9,13 +10,14 @@ LOGBASEDIR=log/
 
 ALG=km
 PARAM=4
+DIM=10
 
 #ALG=mlp
 #PARAM=10,15,1
 
 YLIST=10
 
-DSIZE=1m
+DSIZE=1k
 #DF=$ALG-$PARAM-$DSIZE-d.csv
 
 BS=100 # 1000 10000
@@ -38,7 +40,7 @@ set_dir
 i=1
 
 for m in $MODE; do echo $i-$m -- $(date);
-mpirun -n $((i+1)) src/main/main $m $ALG $PARAM $DATADIR/cars-d.csv $RESDIR/$m-$i.csv -1 $YLIST 1 $LR $BS $ITER $TIME 1000 0.5 100 --v=3 #> $LOGDIR/$m-$i;
+mpirun -n $((i+1)) src/main/main $m $ALG $PARAM $DATADIR/$ALG-$PARAM-$DIM-$DSIZE.csv $RESDIR/$m-$i.csv -1 $YLIST 1 $LR $BS $ITER $TIME 1000 0.5 100 --v=3 #> $LOGDIR/$m-$i;
 #done
 
 #cd ~/Code/FSB/lr-cpp/build
