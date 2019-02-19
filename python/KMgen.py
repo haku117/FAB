@@ -71,9 +71,9 @@ if len(sys.argv) > 3:
     num = int(sys.argv[3])
 
 str_num = str(num)
-if num > 1000000:
+if num >= 1000000:
     str_num = str(num / 1000000) + 'm'
-elif num > 1000:
+elif num >= 1000:
     str_num = str(num / 1000) + 'k'
 
 file_name = "km-" + str(k) + "-" + str(dim) + "-" + str_num + ".csv"
@@ -89,13 +89,3 @@ print("KMgen finish in " + str((end - start).microseconds/1000) + " ms")
 # random.seed(0)
 # for i in range(100):
 #     print(random.randint(-100, 100))
-
-
-
-
-
-
-
-
-
-

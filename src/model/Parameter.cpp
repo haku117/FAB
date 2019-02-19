@@ -57,3 +57,16 @@ void Parameter::accumulate(const std::vector<double>& grad, const double rate){
 	for(size_t i=0; i<n; ++i)
 		weights[i] += rate*grad[i];
 }
+
+bool Parameter::isSameParm(const Parameter& pp){
+	int psize = pp.size();
+	if(psize != weights.size())
+		return false;
+
+	std::vector<double> ppw = pp.getWeights();
+	for (int i = 0; i < psize; i++){
+		if(ppw[i] != weights[i])
+			return false;
+	}
+	return true;
+}

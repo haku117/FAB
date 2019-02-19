@@ -54,6 +54,7 @@ public:
 
 	void handleParameter(const std::string & data, const RPCInfo & info);
 	void waitParameter(); // waitParameter from one worker
+	void checkParamChange(const Parameter& p);
 
 // handler
 public:
@@ -80,6 +81,7 @@ private:
 	//size_t iter; // [defined in Runner] current iteration being executate now (not complete)
 	size_t nUpdate; // used for Async case
 	Timer tmrTrain;
+	int nIterChange;
 
 	size_t lastArchIter;
 	Timer tmrArch;

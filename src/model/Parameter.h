@@ -18,9 +18,11 @@ public:
 
 	void set(const std::vector<double>& d);
 	void set(std::vector<double>&& d);
+	std::vector<double> getWeights() const { return weights; }
 	size_t size() const { return weights.size(); }
+
+	bool isSameParm(const Parameter& pp);
 	
 	void accumulate(const std::vector<double>& delta);
 	void accumulate(const std::vector<double>& grad, const double rate);
-
 };

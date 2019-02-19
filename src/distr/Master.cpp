@@ -14,6 +14,7 @@ Master::Master() : Runner() {
 	// candiParam;
 	iter = 0;
 	nUpdate = 0;
+	nIterChange = 0;
 	lastArchIter = 0;
 	tmrArch.restart();
 
@@ -303,7 +304,8 @@ void Master::applyDelta(std::vector<double>& delta, const int source)
 bool Master::terminateCheck()
 {
 	return (iter >= opt->tcIter)
-		|| (tmrTrain.elapseSd() > opt->tcTime);
+		|| (tmrTrain.elapseSd() > opt->tcTime
+		|| (nIterChange > 10));
 }
 
 void Master::initializeParameter()
@@ -543,10 +545,21 @@ void Master::handleParameter(const std::string & data, const RPCInfo & info)
 	Parameter p;
 	p.set(move(weights));
 	DVLOG(3) << "apply parameter: " << p.weights;
+	checkParamChange(p);
 	model.setParameter(p);
 	suParam.notify();
 	//sendReply(info);
 	++stat.n_par_recv;
+}
+
+void Master::checkParamChange(const Parameter& p){
+	if(param.isSameParm(p)) {
+		nIterChange++;
+	}
+	else {
+		nIterChange = 0;
+	}
+	
 }
 
 void Master::waitParameter()
