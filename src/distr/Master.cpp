@@ -158,7 +158,7 @@ void Master::syncProcess()
 			VLOG(2) << "  Average iteration time of recent 100 iterations: " << (t - tl) / 100;
 			tl = t;
 		}
-		VLOG_EVERY_N(ln, 1)<<"Start iteration: "<<iter;
+		VLOG_EVERY_N(ln, 1)<<"Start iteration: "<<iter << "\t" << nIterChange;
 		waitDeltaFromAll();
 
 		VLOG_EVERY_N(ln, 2) << "  Broadcast new parameters";
