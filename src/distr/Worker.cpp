@@ -95,7 +95,7 @@ void Worker::run()
 
 	DLOG(INFO) << "waiting worker list";
 	waitWorkerList();
-	DLOG(INFO) << "send x length";
+	DLOG(INFO) << "send x length " << model.getKernel()->lengthParameter();
 	sendXLength(); // x dimension
 	DLOG(INFO) << "waiting init parameter";
 	waitParameter();

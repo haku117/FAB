@@ -39,9 +39,9 @@ std::vector<double> Kmeans::predict(const std::vector<double>& x,
 
 	/// convert the parameter vector to centroids 
 	for (int i = 0; i < k; i++) {
-		vector<double> cc(w.begin() + i*k, w.begin() + i*k + xlength);
+		vector<double> cc(w.begin() + i*(xlength+1), w.begin() + i*(xlength+1) + xlength);
 		centroids.push_back(cc);
-		counts.push_back(int(w[i*k + xlength]));
+		counts.push_back(int(w[i*(xlength+1) + xlength]));
 	}
 
 	/// compute new assignment
