@@ -331,6 +331,7 @@ void Worker::fsbProcess()
 		stat.t_par_wait += tmr.elapseSd();
 		tmr.restart();
 		applyBufferParameter();
+		resumeTrain();
 		stat.t_par_calc += tmr.elapseSd();
 		++iter;
 	}
