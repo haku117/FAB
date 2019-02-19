@@ -31,7 +31,7 @@ std::vector<double> GD::batchDelta(const size_t start, const size_t cnt, const b
 		for(size_t j = 0; j < nx; ++j)
 			grad[j] += g[j];
 	}
-	if(start != end){
+	if(start != end && this->pm->kernelName() != "km"){
 		// this is gradient DESCENT, so rate is set to negative
 		double factor = -rate;
 		if(avg)
@@ -58,7 +58,7 @@ std::pair<size_t, std::vector<double>> GD::batchDelta(
 		for(size_t j = 0; j < nx; ++j)
 			grad[j] += g[j];
 	}
-	if(i != start){
+	if(i != start && this->pm->kernelName() != "km"){
 		// this is gradient DESCENT, so rate is set to negative
 		double factor = -rate;
 		if(avg)

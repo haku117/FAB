@@ -426,7 +426,7 @@ void Worker::sendXLength()
 		for(int i = 0; i < k; i++){
 			std::vector<double> OneDp = trainer.pd->get(i).x;
 			kCentroids.insert(kCentroids.end(), OneDp.begin(), OneDp.end());
-			kCentroids.push_back(0); // for cluster counts
+			kCentroids.push_back(1); // for cluster counts
 		}
 		net->send(masterNID, MType::CXLength, kCentroids);
 	}

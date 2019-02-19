@@ -22,5 +22,5 @@ public:
 		const std::vector<double>& y, std::vector<int>* z) const;
 
 	// vector<vector<double>> multiVectorConvert(const std::vector<double>& w) const;
-	double eudist(const std::vector<double>& x, const std::vector<double>& c) const;
+	double eudist(const std::vector<double>& x, const std::vector<double>& c, const int num) const;
 };

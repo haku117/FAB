@@ -48,7 +48,7 @@ std::vector<double> Kmeans::predict(const std::vector<double>& x,
 	double minDist = -1;
 	int id = -1;
 	for (int i = 0; i < k; i++){
-		double dist = eudist(x, centroids[i]);
+		double dist = eudist(x, centroids[i], counts[i]);
 		if (minDist == -1 || dist > minDist){
 			minDist = dist;
 			id = i;
@@ -58,10 +58,10 @@ std::vector<double> Kmeans::predict(const std::vector<double>& x,
 	return { (double)id, minDist }; /// assignment and dist
 }
 
-double Kmeans::eudist(const std::vector<double>& x, const std::vector<double>& c) const{
+double Kmeans::eudist(const std::vector<double>& x, const std::vector<double>& c, const int num) const{
 	double dist = 0;
 	for (int i = 0; i < x.size(); i++){
-		double dis = (x[i] - c[i]);
+		double dis = (x[i] - c[i]/num);
 		dist += dis * dis;
 	}
 	return dist;
@@ -107,12 +107,12 @@ std::vector<double> Kmeans::gradient(const std::vector<double>& x, const std::ve
 		for (int j = 0; j < xlength; j++){
 			delta[id][j] += x[j];
 		}
-		delta[id][xlength]++;
+		delta[id][xlength] += 1;
 		if(oldID >= 0){
 			for (int j = 0; j < xlength; j++){
 				delta[oldID][j] -= x[j];
 			}
-			delta[oldID][xlength]--;
+			delta[oldID][xlength] -= 1;
 		}
 	}
 
