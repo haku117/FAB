@@ -331,7 +331,6 @@ void Worker::fsbProcess()
 		stat.t_par_wait += tmr.elapseSd();
 		tmr.restart();
 		applyBufferParameter();
-		resumeTrain();
 		stat.t_par_calc += tmr.elapseSd();
 		++iter;
 	}
@@ -616,6 +615,19 @@ void Worker::handleParameterFab(const std::string & data, const RPCInfo & info)
 	// break the trainning and apply the received parameter (in main thread)
 	pauseTrain();
 	//applyBufferParameter();
+	++stat.n_par_recv;
+}
+
+void Worker::handleParameterFsb(const std::string & data, const RPCInfo & info)
+{
+	auto weights = deserialize<vector<double>>(data);
+	Parameter p;
+	p.set(move(weights));
+	bufferParameter(p);
+	suParam.notify();
+	//sendReply(info);
+	// continue training
+	resumeTrain();
 	++stat.n_par_recv;
 }
 
