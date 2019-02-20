@@ -109,7 +109,6 @@ void Master::run()
 	showStat();
 	suAllClosed.wait();
 	stopMsgLoop();
-	DLOG(INFO) << " Exit thread ";
 }
 
 Master::callback_t Master::localCBBinder(
