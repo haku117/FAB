@@ -79,11 +79,13 @@ void NetworkThread::Init(int argc, char* argv[]){
 }
 
 void NetworkThread::Shutdown() {
+	LOG(INFO) << " Shutdown thread ";
 	if(self != nullptr) {
 		NetworkThread* p = nullptr;
 		swap(self, p); // use the swap primitive to preform safe deletion
 		delete self;
 		NetworkImplMPI::Shutdown();
+		LOG(INFO) << " Shutdown MPI done ";
 	}
 }
 
