@@ -306,6 +306,7 @@ void Worker::fsbProcess()
 {
 	while(!exitTrain){
 		if(allowTrain == false){
+			VLOG_EVERY_N(ln, 1) << "Iteration " << iter << ": wait for allowTrain";
 			sleep();
 			continue;
 		}
@@ -532,7 +533,7 @@ void Worker::applyBufferParameter()
 	//DLOG(INFO)<<"after lock";
 	DVLOG(3) << "apply parameter: " << bfParam.weights;
 	model.setParameter(bfParam);
-	suParam.notify(); //// notify master
+	// suParam.notify(); //// notify master
 	resumeTrain();
 	//mModel.unlock();
 	hasNewParam = false;
@@ -627,7 +628,7 @@ void Worker::handleParameterFsb(const std::string & data, const RPCInfo & info)
 	Parameter p;
 	p.set(move(weights));
 	bufferParameter(p);
-	// suParam.notify();
+	suParam.notify();
 	//sendReply(info);
 	// continue training
 	// resumeTrain();
