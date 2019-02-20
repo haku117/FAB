@@ -305,11 +305,11 @@ void Worker::fsbInit()
 void Worker::fsbProcess()
 {
 	while(!exitTrain){
-		if(allowTrain == false){
-			VLOG_EVERY_N(ln, 1) << "Iteration " << iter << ": wait for allowTrain";
-			sleep();
-			continue;
-		}
+		// if(allowTrain == false){
+		// 	VLOG_EVERY_N(ln, 1) << "Iteration " << iter << ": wait for allowTrain";
+		// 	sleep();
+		// 	// continue;
+		// }
 		VLOG_EVERY_N(ln, 1) << "Iteration " << iter << ": calculate delta";
 		Timer tmr;
 		size_t cnt;
