@@ -331,6 +331,7 @@ void Worker::fsbProcess()
 		stat.t_par_wait += tmr.elapseSd();
 		tmr.restart();
 		applyBufferParameter();
+		// resumeTrain();
 		stat.t_par_calc += tmr.elapseSd();
 		++iter;
 	}
@@ -628,7 +629,7 @@ void Worker::handleParameterFsb(const std::string & data, const RPCInfo & info)
 	suParam.notify();
 	//sendReply(info);
 	// continue training
-	resumeTrain();
+	// resumeTrain();
 	++stat.n_par_recv;
 }
 

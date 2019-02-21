@@ -28,6 +28,7 @@ void Runner::startMsgLoop(const std::string& name){
 void Runner::stopMsgLoop(){
 	running = false;
 	tmsg.join();
+	DLOG(INFO) << " Exit thread ";
 }
 
 void Runner::msgLoop(const std::string& name) {
