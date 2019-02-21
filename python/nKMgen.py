@@ -56,29 +56,42 @@ def KMgen(file_name, k, dim, num, seed):
     # generate cluster data
     dataset = list()
     tt_num = 0
-    for i in range(k):
-        for j in range(cluster_num[i]):
-            dataset.append(one_dpc(centroids[i], MAX/50, dim))
-            tt_num += 1
-            if tt_num % 10000 == 0:
-                print("generate %s data points" % (tt_num))
+    remain = 0
+    for nn in cluster_num:
+        remain += nn
+    print("remain ", remain)
 
-    
-    s2 = timeit.default_timer()
-    print("finish data generation in " + str(s2 - s0) + " s" )
-    random.shuffle(dataset)
-    s3 = timeit.default_timer()
-    print("finish shuffle in " + str(s3 - s2) + " s" )
+    while remain > 0:
+        ck = random.randint(0, k-1)
+        if cluster_num[ck] == 0:
+            continue
+        dataset.append(one_dpc(centroids[ck], MAX/50, dim))
+        tt_num += 1
+        remain -= 1
+        cluster_num[ck] -= 1
+        if tt_num % 1000 == 0:
+            print("generate %s data points" % (tt_num))
+            save2file(file_name, dataset)
+            dataset = list()
+
+    # random.shuffle(dataset)
+    # s3 = timeit.default_timer()
+    # print("finish shuffle in " + str(s3 - s2) + " s" )
 
     # add some random dp if not meet num
+    print("tt_num ", tt_num)
     while tt_num < num:
         dataset.append(one_dp(dim))
         tt_num += 1
 
-    ref.close()
+    print("tt_num ", tt_num)
+    print("data remain ", len(dataset))
+    save2file(file_name, dataset)
 
-def checkAvi(cluster_num):
-	return 
+    s2 = timeit.default_timer()
+    print("finish data generation in " + str(s2 - s0) + " s")
+
+    ref.close()
 
 
 def save2file(file_name, dataset):
