@@ -54,6 +54,7 @@ public:
 	}
 
 	void flush();
+	void clearBuffer(); ///  clear unsend buffer??
 
 	int id() const;
 	int size() const;

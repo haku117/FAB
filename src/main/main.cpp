@@ -67,7 +67,11 @@ int main(int argc, char* argv[]){
 		}
 	}
 
+	int unsend = net->unpicked_pkgs();
+	// net->clearBuffer();
+	VLOG(3) << " Exit Main, unsend from " << unsend << " to " << net->unpicked_pkgs();
 	NetworkThread::Shutdown();
+	VLOG(3) << " Network shutdown unsend? " << net->unpicked_pkgs();
 	//NetworkThread::Terminate();
 	return 0;
 }

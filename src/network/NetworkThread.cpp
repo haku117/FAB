@@ -63,6 +63,10 @@ int64_t NetworkThread::unpicked_bytes() const{
 	return t;
 }
 
+void NetworkThread::clearBuffer() {
+	receive_buffer.clear();
+}
+
 void NetworkThread::Run(){
 	TaskHeader hdr;
 	unsigned cnt_idle_loop=0;
@@ -186,15 +190,21 @@ void NetworkThread::Shutdown() {
 		NetworkThread* p = nullptr;
 		swap(self, p); // use the swap primitive to preform safe deletion
 		if(p->running) {
-			p->flush();	//finish all the sending
+			// p->flush();	//finish all the sending
 			p->running = false;
 			//wait for Run() to exit
-			while(!p->done) {
-				Sleep();
-			}
+			// int i = 0;
+			// while(!p->done) {
+			// 	if (i < 3) {
+			// 		LOG(INFO) << " Thread self NOT done?? ";
+			// 	}
+			// 	Sleep();
+			// 	i++;
+			// }
 			p->t_.join();
 			p->net = nullptr;
 			NetworkImplMPI::Shutdown();
+			// LOG(INFO) << " Shutdown MPI done ";
 		}
 	}
 }

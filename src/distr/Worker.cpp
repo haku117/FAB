@@ -305,10 +305,10 @@ void Worker::fsbInit()
 void Worker::fsbProcess()
 {
 	while(!exitTrain){
-		if(allowTrain == false){
-			sleep();
-			continue;
-		}
+		// if(allowTrain == false){
+		// 	sleep();
+		// 	continue;
+		// }
 		VLOG_EVERY_N(ln, 1) << "Iteration " << iter << ": calculate delta";
 		Timer tmr;
 		size_t cnt;
@@ -531,6 +531,7 @@ void Worker::applyBufferParameter()
 	//DLOG(INFO)<<"after lock";
 	DVLOG(3) << "apply parameter: " << bfParam.weights;
 	model.setParameter(bfParam);
+	resumeTrain();
 	//mModel.unlock();
 	hasNewParam = false;
 	//mParam.unlock();

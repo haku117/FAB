@@ -5,6 +5,7 @@
  *      Author: tzhou
  */
 #include "NetworkImplMPI.h"
+#include "logging/logging.h"
 
 using namespace std;
 //namespace mpi = boost::mpi;
@@ -46,7 +47,9 @@ NetworkImplMPI* NetworkImplMPI::GetInstance(){
 void NetworkImplMPI::Shutdown(){
 	int flag;
 	MPI_Finalized(&flag);
+	// LOG(INFO) << " NetworkImplMPI finalized?? " << flag;
 	if(!flag){
+		// LOG(INFO) << " MPI done finalize " << 
 		MPI_Finalize();
 	}
 	delete self;

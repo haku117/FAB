@@ -66,6 +66,7 @@ public:
 	void handleDeltaFsb(const std::string& data, const RPCInfo& info);
 	void handleDeltaFab(const std::string& data, const RPCInfo& info);
 	void handleDeltaTail(const std::string& data, const RPCInfo& info);
+	void handleDeltaDC(const std::string& data, const RPCInfo& info);
 
 private:
 	Parameter param;

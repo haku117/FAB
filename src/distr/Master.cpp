@@ -119,7 +119,7 @@ Master::callback_t Master::localCBBinder(
 
 void Master::dcInit()
 {
-///	regDSPProcess(MType::DDelta, localCBBinder(&Master::handleDelta));
+	regDSPProcess(MType::DDelta, localCBBinder(&Master::handleDeltaDC));
 }
 
 void Master::dcProcess()
@@ -531,12 +531,20 @@ void Master::handleDeltaFab(const std::string & data, const RPCInfo & info)
 }
 
 void Master::handleDeltaTail(const std::string & data, const RPCInfo & info)
+{	
+	if(opt->algorighm != "km") {
+		Timer tmr;
+		auto delta = deserialize<vector<double>>(data);
+		stat.t_data_deserial += tmr.elapseSd();
+		int s = wm.nid2lid(info.source);
+		// DVLOG(3) << " call apply delta from handleDeltaTail"; 
+		applyDelta(delta, s);
+	}
+	++stat.n_dlt_recv;
+}
+
+void Master::handleDeltaDC(const std::string & data, const RPCInfo & info)
 {
-	Timer tmr;
-	auto delta = deserialize<vector<double>>(data);
-	stat.t_data_deserial += tmr.elapseSd();
-	int s = wm.nid2lid(info.source);
-	applyDelta(delta, s);
 	++stat.n_dlt_recv;
 }
 
