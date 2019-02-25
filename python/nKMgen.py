@@ -1,6 +1,7 @@
 import random
 import timeit
 import sys
+import numpy as np
 
 MAX = 99999
 
@@ -54,6 +55,7 @@ def KMgen(file_name, k, dim, num, seed):
         ref.write(str_d[:len(str_d)-1] + "," + str(cluster_num[i]) + '\n')
 
     # generate cluster data
+    dataset_all = list()
     dataset = list()
     tt_num = 0
     remain = 0
@@ -71,7 +73,8 @@ def KMgen(file_name, k, dim, num, seed):
         cluster_num[ck] -= 1
         if tt_num % 1000 == 0:
             print("generate %s data points" % (tt_num))
-            save2file(file_name, dataset)
+            # save2file(file_name, dataset)
+            dataset_all.append(dataset)
             dataset = list()
 
     # random.shuffle(dataset)
@@ -86,22 +89,55 @@ def KMgen(file_name, k, dim, num, seed):
 
     print("tt_num ", tt_num)
     print("data remain ", len(dataset))
-    save2file(file_name, dataset)
+    dataset_all.append(dataset)
+
+    normalization(dataset_all, dim)
+
+    save2file(file_name, dataset_all)
 
     s2 = timeit.default_timer()
     print("finish data generation in " + str(s2 - s0) + " s")
 
     ref.close()
 
+def normalization(dataset_all, dim):
+    max_x = np.zeros(dim)
+    min_x = np.zeros(dim)
+    cnt = 0
+    for ds in dataset_all:
+        for row in ds:
+            i = 0
+            for dd in row:
+                if cnt == 0:
+                    max_x[i] = float(dd)
+                    min_x[i] = float(dd)
+                elif float(dd) > max_x[i]:
+                    max_x[i] = float(dd)
+                elif float(dd) < min_x[i]:
+                    min_x[i] = float(dd)
+                cnt += 1
+                i += 1
 
-def save2file(file_name, dataset):
+    # normalization
+    range_x = np.zeros(dim)
+    for i in range(dim):
+        range_x[i] = max_x[i] - min_x[i]
+
+    for ds in dataset_all:
+        for dp in ds:
+            for i in range(dim):
+                dp[i] = 2 * (dp[i] - min_x[i]) / range_x[i] - 1
+
+
+def save2file(file_name, dataset_all):
     file = open(file_name + ".csv", 'a')
     # save file
-    for dd in dataset:
-        str_d = ""
-        for i in dd:
-            str_d += str(i) + ','
-        file.write(str_d[:len(str_d)-1] + '\n')
+    for dataset in dataset_all:
+        for dd in dataset:
+            str_d = ""
+            for i in dd:
+                str_d += str(i) + ','
+            file.write(str_d[:len(str_d)-1] + '\n')
 
     file.close()
 
