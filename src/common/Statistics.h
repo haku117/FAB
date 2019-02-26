@@ -10,6 +10,7 @@ struct Statistics {
 	// delta
 	size_t n_dlt_send, n_dlt_recv;
 	double t_dlt_calc, t_dlt_wait;
+	double t_dlt_accumLcl;
 	// parameter
 	size_t n_par_send, n_par_recv;
 	double t_par_calc, t_par_wait;
