@@ -81,12 +81,14 @@ private:
 	size_t nx;
 	//iter = 0;
 	size_t nUpdate;
-	size_t lastArchIter;
+	size_t lastArchIter;		
+	Timer tmrGlb; // for monitoring the delta ariving time
 
-	std::vector<double> bufferDelta;
-	std::vector<double> bufferDeltaExt;
-	std::vector<bool> deltaIndx0;
+	std::vector<double> bufferDelta;	// buffer the delta from other workers
+	std::vector<double> bufferDeltaExt;	// buffer the multiple delta from other workers
+	std::vector<bool> deltaIndx0;		// delta buffer indicator
 	std::vector<bool> deltaIndx1;
+	std::vector<double> deltaWaitT;	// record the delta arriving time
 	int bfDeltaCnt;
 	
 	bool hasNewParam;

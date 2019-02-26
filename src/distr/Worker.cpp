@@ -50,6 +50,8 @@ void Worker::init(const Option* opt, const size_t lid)
 	ln = opt->logIter;
 	logName = "W"+to_string(localID);
 	setLogThreadName(logName);
+	tmrGlb.restart();
+	deltaWaitT = std::vector<double>();
 
 	/// for dc cache
 	deltaIndx0.assign(nWorker, false);
@@ -142,7 +144,7 @@ Worker::callback_t Worker::localCBBinder(
 
 void Worker::dcSyncInit()
 {
-	factorDelta = 1.0 / nWorker;
+	factorDelta = 1.0;// / nWorker;
 	regDSPProcess(MType::DParameter, localCBBinder(&Worker::handleParameter));
 	regDSPProcess(MType::DDelta, localCBBinder(&Worker::handleDelta)); /// handle delta
 
@@ -195,6 +197,7 @@ void Worker::dcFsbProcess()
 		tie(cnt, lclDelta) = trainer.batchDelta(allowTrain, dataPointer, localBatchSize, true);
 		updatePointer(cnt);
 		VLOG_EVERY_N(ln, 2) << "  calculate delta with " << cnt << " data points";
+		// VLOG_EVERY_N(ln/10, 2) << "  current iter cal time: " << tmr.elapseSd();
 		stat.t_dlt_calc+= tmr.elapseSd();
 		VLOG_EVERY_N(ln, 2) << "  send delta";
 
@@ -203,12 +206,15 @@ void Worker::dcFsbProcess()
 			broadcastSignalPause();
 		}
 		broadcastDelta(lclDelta);
+		tmrGlb.restart(); // for monitoring the delta ariving time
 		accumulateDelta(lclDelta, (int)localID);
+		stat.t_dlt_accumLcl+= tmr.elapseSd();
 
 		if(exitTrain==true){
 			break;
 		}
-		VLOG_EVERY_N(ln, 2) << "  DC: wait for delta from all other workers";
+		// VLOG_EVERY_N(ln, 2) << "  DC: wait for delta from all other workers";
+		tmr.restart();
 		waitDeltaFromAll();
 		if(exitTrain==true){
 			break;
@@ -661,6 +667,8 @@ void Worker::handleDelta(const std::string & data, const RPCInfo & info)
 	auto delta = deserialize<vector<double>>(data);
 	int s = wm.nid2lid(info.source);
 	// rph.input(typeDDeltaAll, s);
+	deltaWaitT.push_back(tmrGlb.elapseSd());
+
 	accumulateDelta(delta, s);
 ///	applyDelta(delta, s);
 ///	rph.input(typeDDeltaAll, s);
@@ -705,6 +713,12 @@ void Worker::copyDelta(std::vector<double>& buffer, std::vector<double>& delta){
 
 void Worker::applyDelta()
 {
+	/// show delta stats
+	DVLOG(2) << "Delta arriving T:  [" ;
+	for (auto tt : deltaWaitT){
+		DVLOG(2) << tt << ", ";
+	}
+
 	DVLOG(3) << "apply buffered delta : " << bufferDelta
 		<< "\nonto: " << model.getParameter().weights;
 	model.accumulateParameter(bufferDelta, factorDelta);
@@ -721,6 +735,8 @@ void Worker::applyDelta()
 	}
 	deltaIndx0 = move(deltaIndx1);
 	deltaIndx1.assign(nWorker, false);
+
+	deltaWaitT.clear();
 	bfDeltaCnt = 0;
 }
 
