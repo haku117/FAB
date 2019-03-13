@@ -33,7 +33,13 @@ void Master::init(const Option* opt, const size_t lid)
 {
 	this->opt = opt;
 	nWorker = opt->nw;
-	trainer.setRate(opt->lrate);
+	if (opt->algorighm == "km") {
+		trainer = new EM;
+	}else {
+		trainer = new GD;
+		trainer->setRate(opt->lrate);
+	}
+	
 	localID = lid;
 	ln = opt->logIter;
 	logName = "M";
@@ -66,7 +72,7 @@ void Master::run()
 	broadcastWorkerList();
 	LOG(INFO)<<"Waiting x-length to initialize parameters";
 	initializeParameter();
-	trainer.bindModel(&model);/// move
+	trainer->bindModel(&model);/// move
 	
 	clearAccumulatedDelta();
 	LOG(INFO) << "Got x-length = " << nx;
@@ -293,7 +299,7 @@ void Master::registerHandlers()
 
 void Master::bindDataset(const DataHolder* pdh)
 {
-	trainer.bindDataset(pdh);
+	trainer->bindDataset(pdh);
 }
 
 void Master::applyDelta(std::vector<double>& delta, const int source)
@@ -345,7 +351,17 @@ bool Master::needArchive()
 {
 	if(!foutput.is_open())
 		return false;
-	if(iter - lastArchIter >= opt->arvIter
+	if(opt->algorighm == "km") {
+		if(iter < 8 || iter == 10 || iter == 14 || iter == 19
+			|| iter - lastArchIter >= 10
+			|| tmrArch.elapseSd() >= opt->arvTime)
+		{
+			lastArchIter = iter;
+			tmrArch.restart();
+			return true;
+		}
+	}
+	else if(iter - lastArchIter >= opt->arvIter
 		|| tmrArch.elapseSd() >= opt->arvTime)
 	{
 		lastArchIter = iter;
@@ -434,6 +450,7 @@ void Master::handleOnline(const std::string & data, const RPCInfo & info)
 	auto lid = deserialize<int>(data);
 	stat.t_data_deserial += tmr.elapseSd();
 	wm.registerID(info.source, lid);
+	// VLOG(2) << "receive online msg from " << info.source << "; " << lid;
 	rph.input(MType::COnline, lid);
 	sendReply(info);
 }
@@ -443,17 +460,30 @@ void Master::handleXLength(const std::string& data, const RPCInfo& info){
 	int source = wm.nid2lid(info.source);
 
 	if(opt->algorighm == "km") {
-		std::vector<double> centroids = deserialize<std::vector<double>>(data);
-		stat.t_data_deserial += tmr.elapseSd();
-		int k = stoi(opt->algParam);
-		if(nx == 0){
-			nx = centroids.size()/k;
-		} else if(nx != centroids.size()/k){
-			LOG(FATAL)<<"dataset on "<<source<<" does not match with others";
-		}
-		if (candiParam.empty()){
-			candiParam = move(centroids);
-		}
+		// if(source == 0) { // initial parameter from top k data in worker 0
+			std::vector<double> centroids = deserialize<std::vector<double>>(data);
+			stat.t_data_deserial += tmr.elapseSd();
+			int k = stoi(opt->algParam);
+			int numK = centroids.back();
+			centroids.pop_back();
+			if(nx == 0){
+				nx = centroids.size()/numK;
+			} else if(nx != centroids.size()/numK){
+				LOG(FATAL)<<"dataset on "<<source<<" does not match with others: "<<
+					nx << " " << numK << " " << centroids.size()/k;
+			}
+			if (candiParam.empty() || (source == 0 && !candiParam.empty() && k == numK)) {
+				candiParam = move(centroids);
+			} else if (candiParam.size() < k * nx){
+				int remain = k - candiParam.size()/nx;
+				if(remain >= numK){
+					candiParam.insert(candiParam.end(), centroids.begin(), centroids.end());
+				} else{
+					candiParam.insert(candiParam.end(), centroids.begin(),
+						centroids.begin() + remain*nx);
+				}
+			}
+		// }
 	} 
 	else {
 		size_t d = deserialize<size_t>(data);
@@ -554,7 +584,7 @@ void Master::handleParameter(const std::string & data, const RPCInfo & info)
 	auto weights = deserialize<vector<double>>(data);
 	Parameter p;
 	p.set(move(weights));
-	DVLOG(3) << "apply parameter: " << p.weights;
+	// VLOG(1) << "apply parameter: " << nIterChange << "; " << p.weights;
 	checkParamChange(p);
 	model.setParameter(p);
 	suParam.notify();
@@ -563,7 +593,13 @@ void Master::handleParameter(const std::string & data, const RPCInfo & info)
 }
 
 void Master::checkParamChange(const Parameter& p){
-	if(param.isSameParm(p)) {
+	
+	// if(iter == 100) {
+	// 	VLOG(1) << "model parameter: " << model.getParameter().weights;
+	// 	VLOG(1) << "master parameter: " << param.weights;
+	// 	VLOG(1) << "new parameter: " << p.weights;
+	// }
+	if(model.getParameter().isSameParm(p)) {
 		nIterChange++;
 	}
 	else {

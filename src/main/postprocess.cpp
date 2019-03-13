@@ -4,7 +4,9 @@
 #include <fstream>
 #include <cmath>
 #include "data/DataHolder.h"
+#include "train/Trainer.h"
 #include "train/GD.h"
+#include "train/EM.h"
 #include "util/Util.h"
 #include "func.h"
 #include "ParameterIO.h"
@@ -161,19 +163,25 @@ int main(int argc, char* argv[]){
 	}
 
 	Parameter param;
-	GD trainer;
-	trainer.bindDataset(&dh);
-	trainer.bindModel(&m);
+	Trainer* trainer;
+	if (algParam == "km") {
+		trainer = new EM;
+	}else {
+		trainer = new GD;
+	}
+	trainer->bindDataset(&dh);
+	trainer->bindModel(&m);
 
 	string line;
 	vector<double> last(dh.xlength(), 0.0);
+	double lastLoss = 0;
 	//int idx = 0;
 	while(getline(fin, line)){
 		if(line.size() < 3)
 			continue;
 		//if(idx++ < 500)
 		//	continue;
-		pair<double, vector<double>> p = parseRecordLine(line);
+		pair<vector<double>, vector<double>> p = parseRecordLineIter(line);
 		double diff = 0.0;
 		if(withRef)
 			diff = vectorDifference(ref, p.second);
@@ -181,11 +189,15 @@ int main(int argc, char* argv[]){
 		last = p.second;
 		param.set(move(p.second));
 		m.setParameter(move(param));
-		double loss = trainer.loss();
+		double loss = lastLoss;
+		if (impro > 0.0001)
+			loss = trainer->loss();
+			lastLoss = loss;
+
 		if(opt.show)
-			cout << p.first << "\t" << loss << "\t" << diff << "\t" << impro << endl;
+			cout << p.first[1] << "\t" << loss << "\t" << impro << "\t" << p.first[0] << endl;
 		if(write)
-			fout << p.first << "," << loss << "," << diff << "," << impro << "\n";
+			fout << p.first[1] << "," << loss << "," << impro << "," << p.first[0] << "\n";
 	}
 	fin.close();
 	fout.close();

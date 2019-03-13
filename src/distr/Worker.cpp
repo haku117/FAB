@@ -3,7 +3,8 @@
 #include "network/NetworkThread.h"
 #include "message/MType.h"
 #include "logging/logging.h"
-#include "util/Timer.h"
+#include "train/EM.h"
+#include "train/GD.h"
 
 using namespace std;
 
@@ -22,7 +23,7 @@ Worker::Worker() : Runner() {
 	typeDDeltaAny = MType::DDelta;
 	typeDDeltaAll = 128 + MType::DDelta;
 	//workerLst = {}; // ??
-	//trainer.bindModel(&model);
+	//trainer->bindModel(&model);
 	factorDelta = 1.0;
 	nx = 0;
 	//iter = 0;
@@ -46,11 +47,12 @@ void Worker::init(const Option* opt, const size_t lid)
 	this->opt = opt;
 	nWorker = opt->nw;
 	localID = lid;
-	trainer.setRate(opt->lrate);
+
 	ln = opt->logIter;
 	logName = "W"+to_string(localID);
 	setLogThreadName(logName);
 	tmrGlb.restart();
+	curCalT = 0;
 	deltaWaitT = std::vector<double>();
 
 	/// for dc cache
@@ -75,7 +77,7 @@ void Worker::init(const Option* opt, const size_t lid)
 void Worker::bindDataset(const DataHolder* pdh)
 {
 	VLOG(1) << "Bind dataset with " << pdh->size() << " data points";
-	trainer.bindDataset(pdh);
+	trainer->bindDataset(pdh);
 	VLOG(1) << "finish Bind dataset";
 	// separated the mini-batch among all workers
 	localBatchSize = opt->batchSize / nWorker;
@@ -97,13 +99,22 @@ void Worker::run()
 
 	DLOG(INFO) << "waiting worker list";
 	waitWorkerList();
-	DLOG(INFO) << "send x length " << trainer.pd->xlength();
+
+	if (opt->algorighm == "km") {
+		trainer = new EM;
+		// DLOG(INFO) << "init trainer EM " << trainer->;
+		trainer->initState();
+	}else {
+		trainer = new GD;
+		trainer->setRate(opt->lrate);
+	}
+	DLOG(INFO) << "send x length " << trainer->pd->xlength();
 	sendXLength(); // x dimension
 	DLOG(INFO) << "waiting init parameter";
 	waitParameter();
 	DLOG(INFO) << "got init parameter";
-	model.init(opt->algorighm, trainer.pd->xlength(), opt->algParam);
-	trainer.bindModel(&model); /// move
+	model.init(opt->algorighm, trainer->pd->xlength(), opt->algParam);
+	trainer->bindModel(&model); /// move
 
 	applyBufferParameter();
 	resumeTrain();
@@ -161,7 +172,7 @@ void Worker::dcSyncProcess()
 		}
 		VLOG_EVERY_N(ln, 1) << "Iteration " << iter << ": calculate delta";
 		Timer tmr;
-		bfDelta = trainer.batchDelta(dataPointer, localBatchSize, true);
+		bfDelta = trainer->batchDelta(dataPointer, localBatchSize, true);
 		updatePointer(localBatchSize);
 		stat.t_dlt_calc+= tmr.elapseSd();
 		VLOG_EVERY_N(ln, 2) << "  send delta";
@@ -194,18 +205,25 @@ void Worker::dcFsbProcess()
 		
 		std::vector<double> lclDelta;
 		// try to use localBatchSize data-points, the actual usage is returned via cnt 
-		tie(cnt, lclDelta) = trainer.batchDelta(allowTrain, dataPointer, localBatchSize, true);
+		tie(cnt, lclDelta) = trainer->batchDelta(allowTrain, dataPointer, localBatchSize, true);
 		updatePointer(cnt);
-		VLOG_EVERY_N(ln, 2) << "  calculate delta with " << cnt << " data points";
+		VLOG_EVERY_N(ln, 3) << "  calculate delta with " << cnt << " data points";
 		// VLOG_EVERY_N(ln/10, 2) << "  current iter cal time: " << tmr.elapseSd();
+		curCalT = tmr.elapseSd();
 		stat.t_dlt_calc+= tmr.elapseSd();
-		VLOG_EVERY_N(ln, 2) << "  send delta";
+		VLOG_EVERY_N(ln, 3) << "  send delta";
 
 		tmr.restart();
 		if(allowTrain == true) {
 			broadcastSignalPause();
 		}
 		broadcastDelta(lclDelta);
+
+		double offset = tmrGlb.elapseSd(); // recompute the early received delta
+		for(double tt : deltaWaitT){
+			tt -= offset;
+		}
+		
 		tmrGlb.restart(); // for monitoring the delta ariving time
 		accumulateDelta(lclDelta, (int)localID);
 		stat.t_dlt_accumLcl+= tmr.elapseSd();
@@ -241,7 +259,7 @@ void Worker::syncProcess()
 	while(!exitTrain){
 		VLOG_EVERY_N(ln, 1) << "Iteration " << iter << ": calculate delta";
 		Timer tmr;
-		bfDelta = trainer.batchDelta(dataPointer, localBatchSize, true);
+		bfDelta = trainer->batchDelta(dataPointer, localBatchSize, true);
 		updatePointer(localBatchSize);
 		stat.t_dlt_calc+= tmr.elapseSd();
 		VLOG_EVERY_N(ln, 2) << "  send delta";
@@ -280,7 +298,7 @@ void Worker::asyncProcess()
 		//}
 		VLOG_EVERY_N(ln, 1) << "Iteration " << iter << ": calculate delta";
 		Timer tmr;
-		bfDelta = trainer.batchDelta(dataPointer, localBatchSize, true);
+		bfDelta = trainer->batchDelta(dataPointer, localBatchSize, true);
 		updatePointer(localBatchSize);
 		stat.t_dlt_calc += tmr.elapseSd();
 		VLOG_EVERY_N(ln, 2) << "  send delta";
@@ -319,7 +337,7 @@ void Worker::fsbProcess()
 		Timer tmr;
 		size_t cnt;
 		// try to use localBatchSize data-points, the actual usage is returned via cnt 
-		tie(cnt, bfDelta) = trainer.batchDelta(allowTrain, dataPointer, localBatchSize, true);
+		tie(cnt, bfDelta) = trainer->batchDelta(allowTrain, dataPointer, localBatchSize, true);
 		updatePointer(cnt);
 		stat.t_dlt_calc += tmr.elapseSd();
 		VLOG_EVERY_N(ln, 2) << "  calculate delta with " << cnt << " data points";
@@ -342,7 +360,7 @@ void Worker::fsbProcess()
 		++iter;
 	}
 
-	// localBatchSize = trainer.pd->size();
+	// localBatchSize = trainer->pd->size();
 	// const size_t n = model.paramWidth();
 	// while(!exitTrain){
 	// 	//if(allowTrain == false){
@@ -357,7 +375,7 @@ void Worker::fsbProcess()
 	// 		vector<double> tmp;
 	// 		size_t c;
 	// 		// try to use localBatchSize data-points, the actual usage is returned via cnt
-	// 		tie(c, tmp) = trainer.batchDelta(allowTrain, dataPointer, localBatchSize, true);
+	// 		tie(c, tmp) = trainer->batchDelta(allowTrain, dataPointer, localBatchSize, true);
 	// 		accumulateDelta(tmp);
 	// 		updatePointer(c);
 	// 		cnt += c;
@@ -409,7 +427,7 @@ void Worker::fabProcess()
 			size_t cnt = 0;
 			vector<double> tmp;
 			resumeTrain();
-			tie(cnt, tmp) = trainer.batchDelta(allowTrain, dataPointer, left, false);
+			tie(cnt, tmp) = trainer->batchDelta(allowTrain, dataPointer, left, false);
 			left -= cnt;
 			updatePointer(cnt);
 			//DVLOG(3) <<"tmp: "<< tmp;
@@ -441,7 +459,7 @@ void Worker::updatePointer(const size_t used)
 {
 	DVLOG(3) << "update pointer from " << dataPointer << " by " << used;
 	dataPointer += used;
-	if(dataPointer >= trainer.pd->size())
+	if(dataPointer >= trainer->pd->size())
 		dataPointer = 0;
 	stat.n_point += used;
 }
@@ -462,15 +480,17 @@ void Worker::sendXLength()
 		/// send k dp as candidate of global centroids
 		std::vector<double> kCentroids;
 		int k = stoi(opt->algParam);
-		for(int i = 0; i < k; i++){
-			std::vector<double> OneDp = trainer.pd->get(i).x;
+		int i = 0;
+		for(; i < k && i < trainer->pd->size(); i++){
+			std::vector<double> OneDp = trainer->pd->get(i).x;
 			kCentroids.insert(kCentroids.end(), OneDp.begin(), OneDp.end());
 			kCentroids.push_back(1); // for cluster counts
 		}
+		kCentroids.push_back(i);
 		net->send(masterNID, MType::CXLength, kCentroids);
 	}
 	else
-		net->send(masterNID, MType::CXLength, trainer.pd->xlength());
+		net->send(masterNID, MType::CXLength, trainer->pd->xlength());
 	suXlength.wait();
 }
 
@@ -713,11 +733,20 @@ void Worker::copyDelta(std::vector<double>& buffer, std::vector<double>& delta){
 
 void Worker::applyDelta()
 {
+	// #if DEBUG
 	/// show delta stats
-	DVLOG(2) << "Delta arriving T:  [" ;
-	for (auto tt : deltaWaitT){
-		DVLOG(2) << tt << ", ";
+	double tt_delta_wait = 0;
+	string dt = "";
+	int cnt = 0;
+	for (int i = deltaWaitT.size()-1; i >= 0; i--){
+		if(deltaWaitT[i] > 0){
+			tt_delta_wait += deltaWaitT[i];
+			cnt++;
+		}
+		dt += std::to_string(deltaWaitT[i]) + ", ";
 	}
+	DVLOG(2) << "Delta stats: " << curCalT << "||" <<  tt_delta_wait/cnt << " [" << dt;
+	// #endif
 
 	DVLOG(3) << "apply buffered delta : " << bufferDelta
 		<< "\nonto: " << model.getParameter().weights;

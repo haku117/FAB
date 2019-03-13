@@ -19,8 +19,7 @@ public:
 	int classify(const double p) const;
 
 	double loss(const std::vector<double>& pred, const std::vector<double>& label) const;
-	// std::vector<double> gradient(
-	// 	const std::vector<double>& x, const std::vector<double>& w, const std::vector<double>& y) const;
+
 	std::vector<double> gradient(const std::vector<double>& x, const std::vector<double>& w, 
 		const std::vector<double>& y, std::vector<int>* z = nullptr) const;
 private:

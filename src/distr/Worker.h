@@ -1,6 +1,7 @@
 #pragma once
 #include "Runner.h"
 #include "IDMapper.h"
+#include "util/Timer.h"
 #include <atomic>
 #include <vector>
 #include <mutex>
@@ -83,6 +84,7 @@ private:
 	size_t nUpdate;
 	size_t lastArchIter;		
 	Timer tmrGlb; // for monitoring the delta ariving time
+	double curCalT;
 
 	std::vector<double> bufferDelta;	// buffer the delta from other workers
 	std::vector<double> bufferDeltaExt;	// buffer the multiple delta from other workers
