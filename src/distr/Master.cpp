@@ -322,6 +322,8 @@ void Master::initializeParameter()
 	suXLength.reset();
 	if(opt->algorighm == "km") {
 		model.init(opt->algorighm, nx, opt->algParam, candiParam);
+	}else if(opt->algorighm == "nmf") {
+		model.init(opt->algorighm, nx, opt->algParam, unsigned(1)); // seed 1??
 	}
 	else
 		model.init(opt->algorighm, nx, opt->algParam, 0.01);
@@ -351,9 +353,9 @@ bool Master::needArchive()
 {
 	if(!foutput.is_open())
 		return false;
-	if(opt->algorighm == "km") {
+	if(opt->algorighm == "km" || opt->algorighm == "nmf") {
 		if(iter < 8 || iter == 10 || iter == 14 || iter == 19
-			|| iter - lastArchIter >= 10
+			|| iter - lastArchIter >= lastArchIter / 2
 			|| tmrArch.elapseSd() >= opt->arvTime)
 		{
 			lastArchIter = iter;

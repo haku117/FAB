@@ -9,6 +9,7 @@ set(HEADERS
 	CNN.h
 	CNNProxy.h
 	Kmeans.h
+	NMF.h
 )
 set(SOURCES
 	Kernel.cpp
@@ -21,6 +22,7 @@ set(SOURCES
 	CNN.cpp
 	CNNProxy.cpp
 	Kmeans.cpp
+	NMF.cpp
 )
 add_library(model
 	${HEADERS} ${SOURCES})

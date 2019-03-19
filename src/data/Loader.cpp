@@ -35,3 +35,31 @@ DataPoint parseLine(const std::string& line, const std::string& sepper,
 	return DataPoint{x, y};
 }
 
+void parseLineNMF(const std::string& line, const std::string& delimiter,
+	std::vector<DataPoint>& data, const int xi, const bool appOne)
+{
+	size_t pstart = 0, pend = 0;
+	int yi = 0;
+	try{
+		while ((pend = line.find(delimiter, pstart)) != std::string::npos) {
+			vector<double> x;
+			x.push_back(xi);
+			x.push_back(yi);
+			++yi;
+			vector<double> y;
+			y.push_back(stod(line.substr(pstart, pend)));
+			data.push_back(DataPoint{move(x), move(y)});
+    		pstart = pend + delimiter.length();
+		}
+
+		vector<double> x;
+		x.push_back(xi);
+		x.push_back(yi);
+		vector<double> y;
+		y.push_back(stod(line.substr(pstart)));
+		data.push_back(DataPoint{move(x), move(y)});
+
+	} catch(...){
+		cout << "Error on idx= " << pstart << " on line: " << line << endl;
+	}
+}

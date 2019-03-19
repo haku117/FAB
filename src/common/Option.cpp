@@ -120,6 +120,8 @@ bool Option::processAlgorithm(){
 		return true;
 	} else if(algorighm == "km"){
 		return true;
+	} else if(algorighm == "nmf"){
+		return true;
 	}
 	return false;
 }

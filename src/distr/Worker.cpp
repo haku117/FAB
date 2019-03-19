@@ -55,6 +55,16 @@ void Worker::init(const Option* opt, const size_t lid)
 	curCalT = 0;
 	deltaWaitT = std::vector<double>();
 
+	if (opt->algorighm == "km") {
+		trainer = new EM;
+	}else if (opt->algorighm == "nmf") {
+		trainer = new EM;
+		trainer->setRate(opt->lrate);
+	}else {
+		trainer = new GD;
+		trainer->setRate(opt->lrate);
+	}
+
 	/// for dc cache
 	deltaIndx0.assign(nWorker, false);
 	deltaIndx1.assign(nWorker, false);
@@ -99,15 +109,6 @@ void Worker::run()
 
 	DLOG(INFO) << "waiting worker list";
 	waitWorkerList();
-
-	if (opt->algorighm == "km") {
-		trainer = new EM;
-		// DLOG(INFO) << "init trainer EM " << trainer->;
-		trainer->initState();
-	}else {
-		trainer = new GD;
-		trainer->setRate(opt->lrate);
-	}
 	DLOG(INFO) << "send x length " << trainer->pd->xlength();
 	sendXLength(); // x dimension
 	DLOG(INFO) << "waiting init parameter";
@@ -115,6 +116,7 @@ void Worker::run()
 	DLOG(INFO) << "got init parameter";
 	model.init(opt->algorighm, trainer->pd->xlength(), opt->algParam);
 	trainer->bindModel(&model); /// move
+	trainer->initState(1);
 
 	applyBufferParameter();
 	resumeTrain();

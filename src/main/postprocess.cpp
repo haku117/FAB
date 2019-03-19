@@ -149,7 +149,11 @@ int main(int argc, char* argv[]){
 	const bool write = !opt.fnOutput.empty();
 
 	DataHolder dh(false, 1, 0);
-	dh.load(opt.fnData, ",", opt.idSkip, opt.idY, false, true);
+	if(opt.alg == "nmf")
+		dh.loadNMF(opt.fnData, ",", opt.algParam, false, true);
+	else
+		dh.load(opt.fnData, ",", opt.idSkip, opt.idY, false, true);
+
 	if(opt.doNormalize)
 		dh.normalize(false);
 
@@ -164,7 +168,7 @@ int main(int argc, char* argv[]){
 
 	Parameter param;
 	Trainer* trainer;
-	if (algParam == "km") {
+	if (opt.alg == "km" || opt.alg == "nmf") {
 		trainer = new EM;
 	}else {
 		trainer = new GD;
@@ -172,8 +176,11 @@ int main(int argc, char* argv[]){
 	trainer->bindDataset(&dh);
 	trainer->bindModel(&m);
 
+	if(opt.show)
+		cout << "finish binding " << m.paramWidth() << endl;
+
 	string line;
-	vector<double> last(dh.xlength(), 0.0);
+	vector<double> last;
 	double lastLoss = 0;
 	//int idx = 0;
 	while(getline(fin, line)){
@@ -181,14 +188,25 @@ int main(int argc, char* argv[]){
 			continue;
 		//if(idx++ < 500)
 		//	continue;
+		// if(opt.show)
+		// 	cout << "parse line: " << line << endl;
 		pair<vector<double>, vector<double>> p = parseRecordLineIter(line);
+		// if(opt.show)
+		// 	cout << "time size: " << p.first.size() << "\tparam size: " << p.second.size() << endl;
 		double diff = 0.0;
 		if(withRef)
 			diff = vectorDifference(ref, p.second);
+		if(last.empty()){
+			last = vector<double>(p.second.size(), 0.0);
+		}
 		double impro = vectorDifference(last, p.second);
+		// if(opt.show)
+		// 	cout << "improv " << impro << endl;
+		
 		last = p.second;
 		param.set(move(p.second));
 		m.setParameter(move(param));
+
 		double loss = lastLoss;
 		if (impro > 0.0001)
 			loss = trainer->loss();

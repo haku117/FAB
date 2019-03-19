@@ -51,6 +51,7 @@ std::pair<size_t, std::vector<double>> GD::batchDelta(
 	size_t nx = pm->paramWidth();
 	vector<double> grad(nx, 0.0);
 	size_t i;
+
 	for(i = start; i < end && (cond.load() || i == start); ++i){
 		// auto g = pm->gradient(pd->get(i));
 		// vector<int>* zi = &(z.at(i));
@@ -58,7 +59,7 @@ std::pair<size_t, std::vector<double>> GD::batchDelta(
 		for(size_t j = 0; j < nx; ++j)
 			grad[j] += g[j];
 	}
-	if(i != start && this->pm->kernelName() != "km"){
+	if(i != start){
 		// this is gradient DESCENT, so rate is set to negative
 		double factor = -rate;
 		if(avg)
@@ -66,5 +67,6 @@ std::pair<size_t, std::vector<double>> GD::batchDelta(
 		for(auto& v : grad)
 			v *= factor;
 	}
+
 	return make_pair(i - start, move(grad));
 }

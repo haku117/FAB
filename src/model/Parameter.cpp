@@ -23,7 +23,7 @@ void Parameter::init(const size_t n, const double mu, const double sigma, const 
 		do{
 			t = dist(g);
 		} while(t == 0.0);
-		return t;
+		return abs(t); /// abs for nmf
 	};
 	init(n, gen);
 }

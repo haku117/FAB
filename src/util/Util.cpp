@@ -118,3 +118,46 @@ size_t stoulKMG(const std::string & str, const bool binary)
 	return stoul(str)*factor;
 }
 
+
+void accumuteDeltaSave(std::vector<double>& delta, std::vector<double>& d){
+
+	int rank = d.size()/2 - 1;
+	int indxWu = int(d[0]);
+	int indxHi = int(d[rank]);
+	for(size_t j = 0; j < delta.size(); j += rank+1){
+		if(delta[j] == indxWu) {// match the dimension of delta
+			for(int k = 0; k < rank; k++){
+				delta[j+1 + k] += d[1 + k]; 
+			}
+			indxWu = -1;
+		}
+		else if(delta[j] == indxHi){
+			for(int k = 0; k < rank; k++){
+				delta[j+1 + k] += d[rank+2 + k]; 
+			}
+			indxHi = -1;
+		}
+	}
+	if(indxWu != -1) {
+		delta.insert(delta.end(), d.begin(), d.begin()+rank+1);
+	}
+	if(indxHi != -1) {
+		delta.insert(delta.end(), d.begin()+rank+1, d.end());
+	}
+}
+
+std::vector<int> parseParam(const std::string& param){
+
+	size_t pstart = 0, pend = 0;
+	std::vector<int> tokens;
+	std::string delimiter = ",";
+	while ((pend = param.find(delimiter, pstart)) != std::string::npos) {
+    	tokens.push_back(stoi(param.substr(pstart, pend)));
+    	pstart = pend + delimiter.length();
+	}
+    tokens.push_back(stoi(param.substr(pstart)));
+	// if(tokens.size() != 3){
+	// 	cout << "incorrect params for NMF: " << tokens.size();
+	// }
+	return tokens;
+}

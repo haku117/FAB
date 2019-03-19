@@ -41,6 +41,6 @@ public:
 	virtual void setRate(const double rate) =0;
 	virtual double getRate() const =0;
 
-	virtual void initState(); /// initialize local state Z for EM
+	virtual void initState(int dim = 0); /// initialize local state Z for EM
 };
 

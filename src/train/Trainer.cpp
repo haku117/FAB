@@ -1,10 +1,12 @@
 #include "Trainer.h"
 #include "logging/logging.h"
+// #include <iostream>
 using namespace std;
 
 Trainer::Trainer(){
 	this->pm = nullptr;
 	this->pd = nullptr;
+	// LOG(INFO) << "inital trainer pointers";
 }
 
 void Trainer::bindModel(Model* pm){
@@ -16,7 +18,7 @@ void Trainer::bindModel(Model* pm){
 }
 
 void Trainer::bindDataset(const DataHolder* pd){
-	//VLOG(3) << "bind dataset data[0]: " << pd->get(0).x << " -> " << pm->getKernel()->lengthState(); 
+	// VLOG(2) << "Trainer bind dataset data[0]: " << pd->get(0).x << " -> " << pm->getKernel()->lengthState(); 
 	// VLOG(3) << "pm name " << this->pm->kernelName();
 	this->pd = pd;
 	// if(this->pm != nullptr) { // && pm->getKernel()->lengthState() != 0){
@@ -27,6 +29,7 @@ void Trainer::bindDataset(const DataHolder* pd){
 double Trainer::loss() const {
 	double res = 0;
 	size_t n = pd->size();
+	// cout << "start trainer loss" << endl;
 	for(size_t i = 0; i < n; ++i){
 		res += pm->loss(pd->get(i));
 	}
@@ -60,7 +63,7 @@ void Trainer::applyDelta(const vector<double>& delta, const double factor)
 // 	return a;
 // }
 
-void Trainer::initState(){
+void Trainer::initState (int dim){
 	DLOG(INFO) << "Trainer init State ??";
 	return;
 }
