@@ -56,7 +56,7 @@ void Master::init(const Option* opt, const size_t lid)
 		fabInit();
 	} else if(opt->mode == "dcsync"){
 		dcInit();
-	} else if(opt->mode == "dcfsb"){
+	} else if(opt->mode.find("dc") >= 0){
 		dcInit();
 	}
 }
@@ -97,11 +97,12 @@ void Master::run()
 		fsbProcess();
 	} else if(opt->mode == "fab"){
 		fabProcess();
-	} else if(opt->mode == "dcsync"){
+	} else if(opt->mode.find("dc") >= 0){
 		dcProcess();
-	} else if(opt->mode == "dcfsb"){
-		dcProcess();
-	}
+	} 
+	// else if(opt->mode == "dcfsb"){
+	// 	dcProcess();
+	// }
 
 	double t = tmrTrain.elapseSd();
 	LOG(INFO) << "Finish training. Time cost: " << t << ". Iterations: " << iter

@@ -82,7 +82,7 @@ void DataHolder::loadNMF(const std::string& fpath, const std::string& sepper,
 	if(fin.fail()){
 		throw invalid_argument("Error in reading file: " + fpath);
 	}
-	LOG(INFO) << "start loading NMF data: " << nnx << ", " << nny;
+	// LOG(INFO) << "start loading NMF data: " << nnx << ", " << nny;
 	// calculate number of x
 	nx = 0;
 	int xi = -1; // x index

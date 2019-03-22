@@ -7,6 +7,7 @@
 #include <vector>
 #include "Task.h"
 #include "serial/serialization.h"
+#include "logging/logging.h"
 #include "util/Timer.h"
 
 class NetworkImplMPI;

@@ -27,6 +27,8 @@ private:
 	void dcSyncInit();
 	void dcSyncProcess();
 	void dcFsbProcess();
+	void dcRingInit();
+	void dcRingProcess();
 	//void generalProcess();
 
 	void updatePointer(const size_t used);
@@ -48,6 +50,7 @@ private:
 // singal
 public:
 	void handleDelta(const std::string& data, const RPCInfo& info);
+	void handleDeltaRingcast(const std::string& data, const RPCInfo& info);
 	void handleReply(const std::string& data, const RPCInfo& info);
 	void handleWorkerList(const std::string& data, const RPCInfo& info);
 	void handleParameter(const std::string& data, const RPCInfo& info);
@@ -58,6 +61,8 @@ public:
 	void handleTerminate(const std::string& data, const RPCInfo& info);
 		
 	void broadcastDelta(std::vector<double>& delta);
+	void ringcastDelta(std::vector<double>& delta);
+	void multicastDelta(std::vector<double>& delta);
 	void waitDeltaFromAll();
 	void accumulateDelta(std::vector<double>& delta, const int source);
 	void copyDelta(std::vector<double>& buffer, std::vector<double>& delta);
@@ -90,6 +95,7 @@ private:
 	std::vector<double> bufferDeltaExt;	// buffer the multiple delta from other workers
 	std::vector<bool> deltaIndx0;		// delta buffer indicator
 	std::vector<bool> deltaIndx1;
+	std::vector<bool> deltaReceiver;
 	std::vector<double> deltaWaitT;	// record the delta arriving time
 	int bfDeltaCnt;
 	

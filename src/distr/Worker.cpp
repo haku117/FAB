@@ -68,6 +68,7 @@ void Worker::init(const Option* opt, const size_t lid)
 	/// for dc cache
 	deltaIndx0.assign(nWorker, false);
 	deltaIndx1.assign(nWorker, false);
+	deltaReceiver.assign(nWorker, false);
 
 	if(opt->mode == "sync"){
 		syncInit();
@@ -79,8 +80,10 @@ void Worker::init(const Option* opt, const size_t lid)
 		fabInit();
 	} else if(opt->mode == "dcsync"){
 		dcSyncInit();
-	} else if(opt->mode == "dcfsb"){
+	} else if(opt->mode.find("dcfsb") >= 0){
 		dcSyncInit();
+	} else if(opt->mode.find("dcring") >= 0){
+		dcRingInit();
 	}
 }
 
@@ -138,8 +141,10 @@ void Worker::run()
 		fabProcess();
 	} else if(opt->mode == "dcsync"){
 		dcSyncProcess();
-	} else if(opt->mode == "dcfsb"){
+	} else if(opt->mode.find("dcfsb") >= 0){
 		dcFsbProcess();
+	} else if(opt->mode.find("dcring") >= 0){
+		dcRingProcess();
 	}
 
 	DLOG(INFO) << "finish training";
@@ -160,6 +165,16 @@ void Worker::dcSyncInit()
 	factorDelta = 1.0;// / nWorker;
 	regDSPProcess(MType::DParameter, localCBBinder(&Worker::handleParameter));
 	regDSPProcess(MType::DDelta, localCBBinder(&Worker::handleDelta)); /// handle delta
+
+	// addRPHAnySU(typeDDeltaAny, suDeltaAny);
+	addRPHEachSU(typeDDeltaAll, suDeltaAll);
+}
+
+void Worker::dcRingInit()
+{
+	factorDelta = 1.0;// / nWorker;
+	regDSPProcess(MType::DParameter, localCBBinder(&Worker::handleParameter));
+	regDSPProcess(MType::DDelta, localCBBinder(&Worker::handleDeltaRingcast)); /// handle delta
 
 	// addRPHAnySU(typeDDeltaAny, suDeltaAny);
 	addRPHEachSU(typeDDeltaAll, suDeltaAll);
@@ -247,6 +262,61 @@ void Worker::dcFsbProcess()
 		if(localID == 0)	/// send record to master only for worker 0
 			sendParameter2M(); /// update parameter to master
 		stat.t_par_calc += tmr.elapseSd();
+		++iter;
+	}
+}
+
+void Worker::dcRingProcess()
+{	
+	while(!exitTrain){
+		VLOG_EVERY_N(ln, 1) << "Iteration " << iter << ": calculate delta";
+		Timer tmr;
+		size_t cnt;
+		
+		std::vector<double> lclDelta;
+		// try to use localBatchSize data-points, the actual usage is returned via cnt 
+		tie(cnt, lclDelta) = trainer->batchDelta(allowTrain, dataPointer, localBatchSize, true);
+		updatePointer(cnt);
+		VLOG_EVERY_N(ln, 3) << "  calculate delta with " << cnt << " data points";
+		// VLOG_EVERY_N(ln/10, 2) << "  current iter cal time: " << tmr.elapseSd();
+		curCalT = tmr.elapseSd();
+		stat.t_dlt_calc+= tmr.elapseSd();
+		VLOG_EVERY_N(ln, 3) << "  send delta";
+
+		tmr.restart();
+		if(allowTrain == true) {
+			broadcastSignalPause();
+		}
+		ringcastDelta(lclDelta);
+
+		double offset = tmrGlb.elapseSd(); // recompute the early received delta
+		for(double tt : deltaWaitT){
+			tt -= offset;
+		}
+		
+		tmrGlb.restart(); // for monitoring the delta ariving time
+		accumulateDelta(lclDelta, (int)localID);
+		stat.t_dlt_accumLcl+= tmr.elapseSd();
+
+		if(exitTrain==true){
+			break;
+		}
+		// VLOG_EVERY_N(ln, 2) << "  DC: wait for delta from all other workers";
+		tmr.restart();
+		waitDeltaFromAll();
+		if(exitTrain==true){
+			break;
+		}
+		stat.t_par_wait += tmr.elapseSd();
+
+		tmr.restart();
+		applyDelta();
+		resumeTrain();
+		if(localID == 0)	/// send record to master only for worker 0
+			sendParameter2M(); /// update parameter to master
+		stat.t_par_calc += tmr.elapseSd();
+
+		deltaReceiver.assign(nWorker, false);
 		++iter;
 	}
 }
@@ -539,6 +609,28 @@ void Worker::broadcastDelta(std::vector<double>& delta)
 	//DVLOG_EVERY_N(ln, 1) << "n-send: " << iter << " un-cmt msg: " << net->pending_pkgs() << " cmt msg: " << net->stat_send_pkg;
 	///// for(int lid; lid < )
 	net->broadcast(MType::DDelta, delta);
+	// for(int i = 0; i < nWorker; i++){
+	// 	if(i != localID){
+	// 		net->send(wm.lid2nid(i), MType::DDelta, delta);
+	// 	}
+	// }
+	++stat.n_dlt_send;
+}
+
+void Worker::ringcastDelta(std::vector<double>& delta)
+{
+	// TODO: add staleness tolerance logic here
+	//DVLOG_EVERY_N(ln, 1) << "n-send: " << iter << " un-cmt msg: " << net->pending_pkgs() << " cmt msg: " << net->stat_send_pkg;
+	///// for(int lid; lid < )
+	delta.push_back(localID); // add original source
+	delta.push_back(iter); // add delta iter #
+
+	int nbl = (localID -1 + nWorker) % nWorker;
+	int nbr = (localID +1 + nWorker) % nWorker;
+	DVLOG(3) << "ringcast delta: " << nbl << "," << nbr << ", " << delta;
+	net->send(wm.lid2nid(nbl), MType::DDelta, delta);
+	if (nbl != nbr)
+		net->send(wm.lid2nid(nbr), MType::DDelta, delta);
 	++stat.n_dlt_send;
 }
 
@@ -697,6 +789,42 @@ void Worker::handleDelta(const std::string & data, const RPCInfo & info)
 ///	rph.input(typeDDeltaAny, s);
 	//sendReply(info);
 	++stat.n_dlt_recv;
+}
+
+void Worker::handleDeltaRingcast(const std::string & data, const RPCInfo & info)
+{
+	int src = wm.nid2lid(info.source);
+
+	auto delta = deserialize<vector<double>>(data);
+	// VLOG(2) << "w" << localID << " receive delta " << delta.size();
+	int orig = delta[delta.size()-2];
+	int diter = delta[delta.size()-1];
+
+	int nbl = (localID -1 + nWorker) % nWorker;
+	int nbr = (localID +1 + nWorker) % nWorker;
+	// VLOG(2) << "w" << localID << " receive delta from " << src << ", orig=" << orig << ", iter=" << diter
+		// ",l=" << nbl << ",r=" << nbr
+		// << ", size=" << delta.size();
+
+	// transmit delta
+	if(src == nbl && src != nbr && (diter > iter || (diter == iter && !deltaReceiver[orig]))) {// delta from source is not there
+		// VLOG(2) << "w" << localID << " transimit delta from " << src << " to " << nbr << " org=" << orig; 
+		net->send(wm.lid2nid(nbr), MType::DDelta, delta);
+	}
+	else if(src == nbr && src != nbl && (diter > iter || (diter == iter && !deltaReceiver[orig]))) {
+		// VLOG(2) << "w" << localID << " transimit delta from " << src << " to " << nbl << " org=" << orig;
+		net->send(wm.lid2nid(nbl), MType::DDelta, delta);
+	}
+
+	if(orig != localID && (!deltaReceiver[orig] || diter > iter)) {
+		delta.pop_back();
+		delta.pop_back();
+		// rph.input(typeDDeltaAll, s);
+		deltaReceiver[orig] = true;
+		deltaWaitT.push_back(tmrGlb.elapseSd());
+		accumulateDelta(delta, orig);
+		++stat.n_dlt_recv;
+	}
 }
 
 void Worker::waitDeltaFromAll()

@@ -102,7 +102,7 @@ bool Option::preprocessMode(){
 			ch += 'a' - 'A';
 	}
 	if(mode == "sync" || mode == "async" || mode == "fsb" || mode == "fab" 
-		|| mode == "dcsync" || mode == "dcfsb")
+		|| mode == "dcsync" || mode.find("dcfsb")>=0 || mode.find("dcring")>=0 )
 		return true;
 	return false;
 }
