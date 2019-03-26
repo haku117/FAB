@@ -1,4 +1,5 @@
 #include "Loader.h"
+#include "math.h"
 #include <iostream>
 
 using namespace std;
@@ -42,24 +43,30 @@ void parseLineNMF(const std::string& line, const std::string& delimiter,
 	int yi = 0;
 	try{
 		while ((pend = line.find(delimiter, pstart)) != std::string::npos) {
-			vector<double> x;
-			x.push_back(xi);
-			x.push_back(yi);
+
+			addData(data, xi, yi, stod(line.substr(pstart, pend)));
 			++yi;
-			vector<double> y;
-			y.push_back(stod(line.substr(pstart, pend)));
-			data.push_back(DataPoint{move(x), move(y)});
     		pstart = pend + delimiter.length();
 		}
 
-		vector<double> x;
-		x.push_back(xi);
-		x.push_back(yi);
-		vector<double> y;
-		y.push_back(stod(line.substr(pstart)));
-		data.push_back(DataPoint{move(x), move(y)});
+		addData(data, xi, yi, stod(line.substr(pstart)));
+		// vector<double> x;
+		// x.push_back(xi);
+		// x.push_back(yi);
+		// vector<double> y;
+		// y.push_back(stod(line.substr(pstart)));
+		// data.push_back(DataPoint{move(x), move(y)});
 
 	} catch(...){
 		cout << "Error on idx= " << pstart << " on line: " << line << endl;
 	}
+}
+
+void addData(std::vector<DataPoint>& data, const int xi, const int yi, double lb){
+	vector<double> x;
+	x.push_back(xi);
+	x.push_back(yi);
+	vector<double> y;
+	y.push_back(lb);
+	data.push_back(DataPoint{move(x), move(y)});
 }

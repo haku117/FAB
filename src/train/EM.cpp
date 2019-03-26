@@ -1,5 +1,6 @@
 #include "EM.h"
 #include "util/Util.h"
+#include "util/Timer.h"
 #include "logging/logging.h"
 using namespace std;
 
@@ -11,7 +12,7 @@ EM::EM()
 }
 
 /// initialize the local state Z
-void EM::initState(int dim){
+void EM::initState(int dim, int rank){
 	if(dim > 0) {
 		int xlen = pd->size();
 		// int dim = 1;//this.pm->getKernel()->lengthState();
@@ -19,6 +20,15 @@ void EM::initState(int dim){
 		std::vector<std::vector<int> > matrix(xlen, std::vector<int>(dim, -1));
 		z = move(matrix);
 	}
+
+	// if(rank > 0) {
+	// 	int xlen = pd->size();
+	// 	// int dim = 1;//this.pm->getKernel()->lengthState();
+	// 	LOG(INFO) << "initalize local x param: " << xlen << " " << rank;
+	// 	int randY = 1; //// update later
+	// 	std::vector<std::vector<double> > matrix(xlen, std::vector<double>(rank, randY));
+	// 	localParam = move(matrix);
+	// }
 }
 
 void EM::setRate(const double rate) {
@@ -61,18 +71,23 @@ std::pair<size_t, std::vector<double>> EM::batchDelta(
 {
 	size_t end = start + cnt;
 
+	Timer tmr;
 	if(this->pm->kernelName() == "nmf") {
 		size_t nx = pm->paramWidth();
 		vector<double> delta(nx, 0.0);
 		// std::vector<double> delta; //for accumuteDeltaSave version
 		size_t dp; // data point index
+		size_t counter = 0;
 		for(dp = start; dp < end && (cond.load() || dp == start); ++dp){
 			size_t i = dp % pd->size(); 	// round the data set
 			std::vector<double> d = pm->gradient(pd->get(i));
 			for(size_t j = 0; j < d.size(); ++j)
 				delta[j] += rate * d[j];
+			counter++;
+			// if (counter % 100 == 0)
 			// accumuteDeltaSave(delta, d);
 		}
+		VLOG(2) << " unit dp cal time for " << counter << " : " << tmr.elapseSd()/counter;
 		return make_pair(dp - start, move(delta));
 	}
 
@@ -88,6 +103,44 @@ std::pair<size_t, std::vector<double>> EM::batchDelta(
 	}
 
 	return make_pair(dp - start, move(delta));
+}
+
+std::pair<size_t, std::vector<double>> EM::batchDeltaPipe(std::atomic<bool>& cond, 
+	const size_t start, const size_t cnt, const size_t blk, const std::vector<int> blkSize, bool avg)
+{
+	Timer tmr;
+	size_t end = start + cnt;
+	size_t counter;
+	int nny = 0;
+	int ubY = 0;
+	for(int yi = 0; yi < blkSize.size(); yi++) {
+		nny += blkSize[yi];
+		if(yi <= blk)
+			ubY += blkSize[yi];
+	}
+	
+	// if(this->pm->kernelName() == "nmf") {
+		size_t nx = pm->paramWidth();
+		vector<double> delta(nx, 0.0);
+		// std::vector<double> delta; //for accumuteDeltaSave version
+		size_t dp = start; // data point index
+		for(counter = 0; counter < cnt && cond.load(); ++counter, ++dp){
+			/// cal right dp in range blk
+			int yi = dp % nny;
+			size_t i = dp % pd->size(); 	// round the data set
+			if(yi >= ubY || yi == 0){ // yi == 0 for last element in a line
+				dp += nny - blkSize[blk];
+				i = dp % pd->size();
+			}
+			std::vector<double> d = pm->gradient(pd->get(i));
+			for(size_t j = 0; j < d.size(); ++j)
+				delta[j] += rate * d[j];
+			// accumuteDeltaSave(delta, d);
+		}
+
+		VLOG(2) << " unit dp cal time for " << counter << " : " << tmr.elapseSd()/counter;
+		return make_pair(counter, move(delta));
+	// }
 }
 
 // void EM::accumuteDeltaSave(std::vector<double>& delta, std::vector<double>& d){

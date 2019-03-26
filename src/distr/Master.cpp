@@ -56,7 +56,9 @@ void Master::init(const Option* opt, const size_t lid)
 		fabInit();
 	} else if(opt->mode == "dcsync"){
 		dcInit();
-	} else if(opt->mode.find("dc") >= 0){
+	} else if(opt->mode.find("dc") !=std::string::npos){
+		dcInit();
+	}else if(opt->mode.find("pipe") !=std::string::npos){
 		dcInit();
 	}
 }
@@ -97,7 +99,9 @@ void Master::run()
 		fsbProcess();
 	} else if(opt->mode == "fab"){
 		fabProcess();
-	} else if(opt->mode.find("dc") >= 0){
+	} else if(opt->mode.find("dc") !=std::string::npos){
+		dcProcess();
+	} else if(opt->mode.find("pipe") !=std::string::npos){
 		dcProcess();
 	} 
 	// else if(opt->mode == "dcfsb"){

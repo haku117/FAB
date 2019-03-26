@@ -35,6 +35,10 @@ public:
 	virtual std::pair<size_t, std::vector<double>> batchDelta(
 		std::atomic<bool>& cond, const size_t start, const size_t cnt, const bool avg = true) = 0;
 
+	virtual std::pair<size_t, std::vector<double>> batchDeltaPipe(
+		std::atomic<bool>& cond, const size_t start, const size_t cnt, const size_t blk, 
+		const std::vector<int> blkSize, const bool avg = true) =0;
+
 	// apply the delta values to the model parameter, parameter += delat*factor
 	virtual void applyDelta(const std::vector<double>& delta, const double factor = 1.0);
 

@@ -54,15 +54,6 @@ void Trainer::applyDelta(const vector<double>& delta, const double factor)
 	pm->accumulateParameter(delta, factor);
 }
 
-// void Trainer::setZ(std::vector<std::vector<int> > z) {
-// 	return;
-// }
-
-// std::vector<std::vector<int> > Trainer::getZ() const{
-// 	std::vector<std::vector<int> > a;
-// 	return a;
-// }
-
 void Trainer::initState (int dim){
 	DLOG(INFO) << "Trainer init State ??";
 	return;

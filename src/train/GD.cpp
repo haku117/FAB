@@ -1,5 +1,6 @@
 #include "GD.h"
 #include "logging/logging.h"
+#include "util/Timer.h"
 using namespace std;
 
 GD::GD()
@@ -20,6 +21,8 @@ double GD::getRate() const {
 
 std::vector<double> GD::batchDelta(const size_t start, const size_t cnt, const bool avg)
 {
+	Timer tmr;
+	int counter = 0;
 	size_t end = start + cnt;
 	if(end > pd->size())
 		end = pd->size();
@@ -30,6 +33,7 @@ std::vector<double> GD::batchDelta(const size_t start, const size_t cnt, const b
 		auto g = pm->gradient(pd->get(i));
 		for(size_t j = 0; j < nx; ++j)
 			grad[j] += g[j];
+		counter++;
 	}
 	if(start != end && this->pm->kernelName() != "km"){
 		// this is gradient DESCENT, so rate is set to negative
@@ -39,12 +43,15 @@ std::vector<double> GD::batchDelta(const size_t start, const size_t cnt, const b
 		for(auto& v : grad)
 			v *= factor;
 	}
+	VLOG(2) << " unit dp cal time for " << counter << " : " << tmr.elapseSd()/counter;
 	return grad;
 }
 
 std::pair<size_t, std::vector<double>> GD::batchDelta(
 	std::atomic<bool>& cond, const size_t start, const size_t cnt, const bool avg)
 {
+	Timer tmr;
+	int counter = 0;
 	size_t end = start + cnt;
 	if(end > pd->size())
 		end = pd->size();
@@ -58,6 +65,8 @@ std::pair<size_t, std::vector<double>> GD::batchDelta(
 		auto g = pm->gradient(pd->get(i));
 		for(size_t j = 0; j < nx; ++j)
 			grad[j] += g[j];
+
+		counter++;
 	}
 	if(i != start){
 		// this is gradient DESCENT, so rate is set to negative
@@ -68,5 +77,6 @@ std::pair<size_t, std::vector<double>> GD::batchDelta(
 			v *= factor;
 	}
 
+	VLOG(2) << " unit dp cal time for " << counter << " : " << tmr.elapseSd()/counter;
 	return make_pair(i - start, move(grad));
 }

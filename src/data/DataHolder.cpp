@@ -1,5 +1,6 @@
 #include "DataHolder.h"
 #include "Loader.h"
+#include "math.h"
 #include "util/Util.h"
 #include <algorithm>
 #include <unordered_set>
@@ -74,10 +75,6 @@ void DataHolder::loadNMF(const std::string& fpath, const std::string& sepper,
 	const std::string& param,
 	const bool header, const bool onlyLocalPart)
 {
-	std::vector<int> params = parseParam(param);
-	int nnx = params[1];
-	int nny = params[2];
-
 	ifstream fin(fpath);
 	if(fin.fail()){
 		throw invalid_argument("Error in reading file: " + fpath);
@@ -88,6 +85,21 @@ void DataHolder::loadNMF(const std::string& fpath, const std::string& sepper,
 	int xi = -1; // x index
 	string line;
 
+	std::vector<int> params = parseParam(param);
+	int nnx = params[1];
+	int nny = params[2];
+
+	// int sqrtNW = sqrt(npart);
+	// int xparts = sqrtNW;
+	// int yparts = sqrtNW;
+	// if(sqrtNW * sqrtNW < npart && sqrtNW * (sqrtNW + 1) >= npart) {
+	// 	xparts = sqrtNW+1;
+	// }
+	// else if(sqrtNW * (sqrtNW + 1) < npart) {
+	// 	xparts = sqrtNW + 1;
+	// 	yparts = sqrtNW + 1;
+	// }
+
 	// deal with header
 	if(!header)
 		fin.seekg(0);
@@ -97,6 +109,7 @@ void DataHolder::loadNMF(const std::string& fpath, const std::string& sepper,
 		if(line.front() == '#') // invalid line
 			continue;
 		++xi;
+
 		if(onlyLocalPart && lid++ % npart != pid) // not local line
 			continue;
 		parseLineNMF(line, sepper, data, xi, appendOne);
