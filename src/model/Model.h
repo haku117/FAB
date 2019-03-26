@@ -42,7 +42,7 @@ public:
 	double loss(const DataPoint& dp) const;
 	double loss(const std::vector<double>& pred, const std::vector<double>& label) const;
 	// std::vector<double> gradient(const DataPoint& dp) const;
-	std::vector<double> gradient(const DataPoint& dp, std::vector<int>* z) const;
+	std::vector<double> gradient(const DataPoint& dp, std::vector<int>* z = nullptr) const;
 
 private:
 	void generateKernel(const std::string& name);

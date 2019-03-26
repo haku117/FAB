@@ -1,8 +1,11 @@
 #include "DataHolder.h"
 #include "Loader.h"
+#include "math.h"
+#include "util/Util.h"
 #include <algorithm>
 #include <unordered_set>
 #include <fstream>
+#include "logging/logging.h"
 
 using namespace std;
 
@@ -17,7 +20,7 @@ size_t DataHolder::xlength() const{
 size_t DataHolder::ylength() const{
 	return ny;
 }
-
+//
 void DataHolder::load(const std::string& fpath, const std::string& sepper,
 	const std::vector<int> skips, const std::vector<int>& yIds,
 	const bool header, const bool onlyLocalPart)
@@ -64,6 +67,57 @@ void DataHolder::load(const std::string& fpath, const std::string& sepper,
 			continue;
 		DataPoint dp = parseLine(line, sepper, xIds, yIds_u, appendOne);
 		data.push_back(move(dp));
+	}
+}
+
+void DataHolder::loadNMF(const std::string& fpath, const std::string& sepper,
+	// const std::vector<int> skips, const std::vector<int>& yIds,
+	const std::string& param,
+	const bool header, const bool onlyLocalPart)
+{
+	ifstream fin(fpath);
+	if(fin.fail()){
+		throw invalid_argument("Error in reading file: " + fpath);
+	}
+	// LOG(INFO) << "start loading NMF data: " << nnx << ", " << nny;
+	// calculate number of x
+	nx = 0;
+	int xi = -1; // x index
+	string line;
+
+	std::vector<int> params = parseParam(param);
+	int nnx = params[1];
+	int nny = params[2];
+
+	// int sqrtNW = sqrt(npart);
+	// int xparts = sqrtNW;
+	// int yparts = sqrtNW;
+	// if(sqrtNW * sqrtNW < npart && sqrtNW * (sqrtNW + 1) >= npart) {
+	// 	xparts = sqrtNW+1;
+	// }
+	// else if(sqrtNW * (sqrtNW + 1) < npart) {
+	// 	xparts = sqrtNW + 1;
+	// 	yparts = sqrtNW + 1;
+	// }
+
+	// deal with header
+	if(!header)
+		fin.seekg(0);
+	// parse lines
+	size_t lid = 0; // line id;
+	while(getline(fin, line)){
+		if(line.front() == '#') // invalid line
+			continue;
+		++xi;
+
+		if(onlyLocalPart && lid++ % npart != pid) // not local line
+			continue;
+		parseLineNMF(line, sepper, data, xi, appendOne);
+		// DataPoint dp = parseLineNMF(line, sepper, xIds, yIds_u, appendOne);
+		// data.push_back(move(dp));
+		// if(xi % 100 == 1){
+		// 	VLOG(2) << "load NMF data: " << xi;
+		// }
 	}
 }
 

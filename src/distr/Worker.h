@@ -1,6 +1,7 @@
 #pragma once
 #include "Runner.h"
 #include "IDMapper.h"
+#include "util/Timer.h"
 #include <atomic>
 #include <vector>
 #include <mutex>
@@ -15,6 +16,7 @@ public:
 
 private:
 	callback_t localCBBinder(void (Worker::*fp)(const std::string&, const RPCInfo&));
+	///=== Centralized model
 	void syncInit();
 	void syncProcess();
 	void asyncInit();
@@ -23,46 +25,74 @@ private:
 	void fsbProcess();
 	void fabInit();
 	void fabProcess();
+
+	///=== DeCentralized model
 	void dcSyncInit();
 	void dcSyncProcess();
 	void dcFsbProcess();
+	void pipeInit();
+	void pipeProcess();
+	// void dcRingInit();
+	// void dcRingProcess();
+	// void dcMltInit();
+	// void dcMltProcess();
 	//void generalProcess();
 
-	void updatePointer(const size_t used);
+	///=== initalization functions
 	void sendOnline();
 	void waitWorkerList();
 	void sendXLength();
 	void sendClosed();
+	void initPipeBlk();
+
+	///=== calculateion functions
+	void updatePointer(const size_t used);
+	void updatePointerPipe(const size_t used, const size_t blk);
+
+	void pauseTrain() { allowTrain = false; };
+	void resumeTrain() { allowTrain = true; };
+	void broadcastSignalPause();
+	// void broadcastSignalSync() { net->broadcast(MType::CTrainSync, ""); };
+
+	///=== Delta Process functions
+	void sendDelta(std::vector<double>& delta);
+	void broadcastDelta(std::vector<double>& delta);
+	void broadcastDeltaPlus(std::vector<double>& delta);
+	void ringcastDelta(std::vector<double>& delta);
+	void multicastDelta(std::vector<double>& delta);
 
 	void accumulateDelta(const std::vector<double>& delta);
-	void sendDelta(std::vector<double>& delta);
+	void accumulateDelta(std::vector<double>& delta, const int source);
+	void accumulateDeltaPipe(std::vector<double>& delta, const int source, const int dIter);
+	void copyDelta(std::vector<double>& buffer, std::vector<double>& delta);
+	void applyDelta();
+	void applyDeltaPipe();
+	void waitDeltaFromAll();
+
+	///=== Parameter Process functions
 	void bufferParameter(Parameter& p);
 	void applyBufferParameter(); // using the buffer
 	void waitParameter();
 	void fetchParmeter();
-
-	void pauseTrain();
-	void resumeTrain();
+	void sendParameter2M();
 
 // singal
 public:
 	void handleDelta(const std::string& data, const RPCInfo& info);
+	void handleDeltaPipe(const std::string& data, const RPCInfo& info);
+	void handleDeltaRingcast(const std::string& data, const RPCInfo& info);
+	void handleDeltaMltcast(const std::string& data, const RPCInfo& info);
+
 	void handleReply(const std::string& data, const RPCInfo& info);
 	void handleWorkerList(const std::string& data, const RPCInfo& info);
 	void handleParameter(const std::string& data, const RPCInfo& info);
 	void handleParameterFab(const std::string& data, const RPCInfo& info);
 	void handleParameterFsb(const std::string& data, const RPCInfo& info);
 	void handlePause(const std::string& data, const RPCInfo& info);
+	void handleSync(const std::string& data, const RPCInfo& info);
 	void handleContinue(const std::string& data, const RPCInfo& info);
 	void handleTerminate(const std::string& data, const RPCInfo& info);
 		
-	void broadcastDelta(std::vector<double>& delta);
-	void waitDeltaFromAll();
-	void accumulateDelta(std::vector<double>& delta, const int source);
-	void copyDelta(std::vector<double>& buffer, std::vector<double>& delta);
-	void applyDelta();
-	void sendParameter2M();
-	void broadcastSignalPause();
 
 private:
 	size_t dataPointer;
@@ -83,11 +113,23 @@ private:
 	size_t nUpdate;
 	size_t lastArchIter;		
 	Timer tmrGlb; // for monitoring the delta ariving time
+	double curCalT;
+	int mltDD;
+
+	int blkNum, nny; // block size for pipeline running
+	int stale; // record the current iter for updated param
+	std::vector<int> blkPointer; // block start and index??
+	std::vector<int> blkSize; // block start and index??
+	std::vector<int> blkDeltaBFCnt; // count the delta buffered at each blk
+	std::vector<std::vector<double> > bfBlkDelta;
+	std::vector<std::vector<bool> > bfBlkDeltaIndex;
+	int curDeltaIndex; // indicate the position of current delta in bf
 
 	std::vector<double> bufferDelta;	// buffer the delta from other workers
 	std::vector<double> bufferDeltaExt;	// buffer the multiple delta from other workers
 	std::vector<bool> deltaIndx0;		// delta buffer indicator
 	std::vector<bool> deltaIndx1;
+	std::vector<bool> deltaReceiver;
 	std::vector<double> deltaWaitT;	// record the delta arriving time
 	int bfDeltaCnt;
 	

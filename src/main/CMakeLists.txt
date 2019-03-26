@@ -6,12 +6,14 @@ set(SOURCES
 	func.cpp
 	ParameterIO.cpp
 )
+
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread")
 # exe: main
 add_executable(main main.cpp
 	${HEADERS} ${SOURCES})
 target_link_libraries(main
 #	common data model train util
-	distr #driver logging network 
+	distr train #driver logging network 
 	#${Boost_PROGRAM_OPTIONS_LIBRARY}
 )
 # exe: postprocess

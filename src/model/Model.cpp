@@ -1,5 +1,6 @@
 #include "Model.h"
 #include "KernelFactory.h"
+// #include <iostream>
 
 using namespace std;
 
@@ -31,7 +32,7 @@ void Model::init(const std::string & name, const int nx, const std::string & par
 	generateKernel(name);
 	kern->init(nx, paramKern);
 	size_t n = kern->lengthParameter();
-	param.init(n, 0.01, 0.01, seed);
+	param.init(n, 1, 1, seed);
 }
 
 /// for km or specific param initalization
@@ -101,7 +102,9 @@ int Model::classify(const double p) const
 
 double Model::loss(const DataPoint & dp) const
 {
+	// cout << "start model loss" << endl;
 	std::vector<double> pred = kern->predict(dp.x, param.weights);
+	// cout << "pred: " << pred.size() << "\ty: " << dp.y.size() << endl;
 	return loss(pred, dp.y);
 }
 

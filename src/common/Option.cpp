@@ -102,7 +102,9 @@ bool Option::preprocessMode(){
 			ch += 'a' - 'A';
 	}
 	if(mode == "sync" || mode == "async" || mode == "fsb" || mode == "fab" 
-		|| mode == "dcsync" || mode == "dcfsb")
+		|| mode == "dcsync" || mode.find("dcfsb")!=std::string::npos 
+		|| mode.find("dcring")!=std::string::npos  
+		|| mode.find("pipe")!=std::string::npos )
 		return true;
 	return false;
 }
@@ -119,6 +121,8 @@ bool Option::processAlgorithm(){
 	} else if(algorighm == "cnn"){
 		return true;
 	} else if(algorighm == "km"){
+		return true;
+	} else if(algorighm == "nmf"){
 		return true;
 	}
 	return false;

@@ -25,6 +25,7 @@ void Runner::startMsgLoop(const std::string& name){
 //	tmsg = thread(bind(&Runner::msgLoop, this, name));
 	tmsg = thread(&Runner::msgLoop, this, name);
 }
+
 void Runner::stopMsgLoop(){
 	running = false;
 	tmsg.join();

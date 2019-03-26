@@ -4,7 +4,9 @@
 #include <fstream>
 #include <cmath>
 #include "data/DataHolder.h"
+#include "train/Trainer.h"
 #include "train/GD.h"
+#include "train/EM.h"
 #include "util/Util.h"
 #include "func.h"
 #include "ParameterIO.h"
@@ -147,7 +149,11 @@ int main(int argc, char* argv[]){
 	const bool write = !opt.fnOutput.empty();
 
 	DataHolder dh(false, 1, 0);
-	dh.load(opt.fnData, ",", opt.idSkip, opt.idY, false, true);
+	if(opt.alg == "nmf")
+		dh.loadNMF(opt.fnData, ",", opt.algParam, false, true);
+	else
+		dh.load(opt.fnData, ",", opt.idSkip, opt.idY, false, true);
+
 	if(opt.doNormalize)
 		dh.normalize(false);
 
@@ -161,31 +167,55 @@ int main(int argc, char* argv[]){
 	}
 
 	Parameter param;
-	GD trainer;
-	trainer.bindDataset(&dh);
-	trainer.bindModel(&m);
+	Trainer* trainer;
+	if (opt.alg == "km" || opt.alg == "nmf") {
+		trainer = new EM;
+	}else {
+		trainer = new GD;
+	}
+	trainer->bindDataset(&dh);
+	trainer->bindModel(&m);
+
+	if(opt.show)
+		cout << "finish binding " << m.paramWidth() << endl;
 
 	string line;
-	vector<double> last(dh.xlength(), 0.0);
+	vector<double> last;
+	double lastLoss = 0;
 	//int idx = 0;
 	while(getline(fin, line)){
 		if(line.size() < 3)
 			continue;
 		//if(idx++ < 500)
 		//	continue;
-		pair<double, vector<double>> p = parseRecordLine(line);
+		// if(opt.show)
+		// 	cout << "parse line: " << line << endl;
+		pair<vector<double>, vector<double>> p = parseRecordLineIter(line);
+		// if(opt.show)
+		// 	cout << "time size: " << p.first.size() << "\tparam size: " << p.second.size() << endl;
 		double diff = 0.0;
 		if(withRef)
 			diff = vectorDifference(ref, p.second);
+		if(last.empty()){
+			last = vector<double>(p.second.size(), 0.0);
+		}
 		double impro = vectorDifference(last, p.second);
+		// if(opt.show)
+		// 	cout << "improv " << impro << endl;
+		
 		last = p.second;
 		param.set(move(p.second));
 		m.setParameter(move(param));
-		double loss = trainer.loss();
+
+		double loss = lastLoss;
+		if (impro > 0.0001)
+			loss = trainer->loss();
+			lastLoss = loss;
+
 		if(opt.show)
-			cout << p.first << "\t" << loss << "\t" << diff << "\t" << impro << endl;
+			cout << p.first[1] << "\t" << loss << "\t" << impro << "\t" << p.first[0] << endl;
 		if(write)
-			fout << p.first << "," << loss << "," << diff << "," << impro << "\n";
+			fout << p.first[1] << "," << loss << "," << impro << "," << p.first[0] << "\n";
 	}
 	fin.close();
 	fout.close();

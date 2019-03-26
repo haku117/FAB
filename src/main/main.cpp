@@ -55,8 +55,13 @@ int main(int argc, char* argv[]){
 		VLOG(2) << "Loading data";
 		DataHolder dh(false, opt.nw, lid);
 		try{
-			dh.load(opt.fnData, ",", opt.idSkip, opt.idY, opt.header, true);
+			if(opt.algorighm == "nmf") 
+				dh.loadNMF(opt.fnData, ",", opt.algParam, opt.header, true);
+			else
+				dh.load(opt.fnData, ",", opt.idSkip, opt.idY, opt.header, true);
 			DVLOG(2) << "data[0]: " << dh.get(0).x << " -> " << dh.get(0).y;
+			// if(dh.size() > 6)
+			// 	DVLOG(2) << "data[6]: " << dh.get(6).x << " -> " << dh.get(6).y;
 			if(opt.doNormalize)
 				dh.normalize(false);
 			DVLOG(2) << "data[0]: " << dh.get(0).x << " -> " << dh.get(0).y;

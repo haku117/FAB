@@ -22,6 +22,7 @@ struct MsgHeader{
 struct TaskBase{
 	int src_dst;
 	int type;
+	int orig; // dc
 	static constexpr int ANY_SRC=-1;
 	static constexpr int ANY_DST=-1;
 	static constexpr int ANY_TYPE=-1;
@@ -35,7 +36,8 @@ struct Task : public TaskBase{
 	std::string payload;
 	Task(int s_d,int type):TaskBase{s_d,type} {}//src_dst(s_d),type(type){}
 	Task(int s_d,int type,std::string&& s):TaskBase{s_d,type},payload(s){}
-	Task(int s_d,int type,const std::string& s):TaskBase{s_d,type},payload(s){}
+	//??? Task(int s_d,int type,const std::string& s):TaskBase{s_d,type},payload(s){}
+	Task(int s_d,int type,std::string&& s,int orig):TaskBase{s_d,type,orig},payload(s){}
 
 //	Task(int s_d,int type,const google::protobuf::MessageLite& msg,const MsgHeader& h=MsgHeader(false));
 

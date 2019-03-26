@@ -1,14 +1,22 @@
 #pragma once
 #include "Trainer.h"
 
-class GD : public Trainer
+class EM : public Trainer
 {
 	double rate;
+	/// local stats for each data point
+	std::vector<std::vector<int> > z;
+	// std::vector<std::vector<double> > localParam;
 
 public:
-	GD();
+	EM();
 	void setRate(const double rate);
 	double getRate() const;
+
+	// void setZ(std::vector<std::vector<int> > z);
+	// std::vector<std::vector<int> > getZ() const;
+
+	void initState(int dim, int nnx = 0);
 
 	virtual std::vector<double> batchDelta(
 		const size_t start, const size_t cnt, const bool avg = true);
@@ -18,6 +26,7 @@ public:
 
 	virtual std::pair<size_t, std::vector<double>> batchDeltaPipe(std::atomic<bool>& cond, 
 		const size_t start, const size_t cnt, const size_t blk, const std::vector<int> blkSize, 
-		const bool avg = true) {};
+		const bool avg = true);
+	// void EM::accumuteDeltaSave(std::vector<double>& delta, std::vector<double>& d);
 };
 

@@ -13,3 +13,6 @@ std::vector<std::string> getStringList(const std::string & str, const std::strin
 // binary: whether to use 2^10=1024 or 1000
 int stoiKMG(const std::string & str, const bool binary = false);
 size_t stoulKMG(const std::string & str, const bool binary = false);
+
+void accumuteDeltaSave(std::vector<double>& delta, std::vector<double>& d);
+std::vector<int> parseParam(const std::string& param);

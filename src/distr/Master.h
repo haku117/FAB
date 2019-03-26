@@ -4,6 +4,8 @@
 #include "IntervalEstimator.h"
 #include "driver/tools/SyncUnit.h"
 #include "util/Timer.h"
+#include "train/EM.h"
+#include "train/GD.h"
 #include <vector>
 #include <fstream>
 
