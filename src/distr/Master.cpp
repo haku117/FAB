@@ -144,11 +144,11 @@ void Master::dcProcess()
 			tl = t;
 		}
 		VLOG_EVERY_N(ln, 1)<<"Start iteration: "<<iter;
-		VLOG(2) << "Master wait for new param";
+		// VLOG(2) << "Master wait for new param";
 		waitParameter(); // wait one parameter update
-		VLOG(2) << "Master received new param";
+		// VLOG(2) << "Master received new param";
 
-		VLOG_EVERY_N(ln, 2) << "  DC: receive new parameters";
+		VLOG_EVERY_N(ln, 3) << "  DC: receive new parameters";
 		archiveProgress();
 		//waitParameterConfirmed();
 		++iter;
@@ -589,12 +589,12 @@ void Master::handleDeltaDC(const std::string & data, const RPCInfo & info)
 /// update parameter from worker (DC)
 void Master::handleParameter(const std::string & data, const RPCInfo & info)
 {	
-	VLOG(2) << "Master receive parameter: ";
+	// VLOG(2) << "Master receive parameter: ";
 	auto weights = deserialize<vector<double>>(data);
-	VLOG(2) << "receive parameter: " << weights.size() << "; " << model.paramWidth();
+	// VLOG(2) << "receive parameter: " << weights.size() << "; " << model.paramWidth();
 	Parameter p;
 	p.set(move(weights));
-	VLOG(2) << "apply parameter: " << nIterChange << "; " << p.weights;
+	// VLOG(3) << "apply parameter: " << nIterChange << "; " << p.weights;
 	checkParamChange(p);
 	model.setParameter(p);
 	suParam.notify();

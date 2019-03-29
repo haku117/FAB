@@ -219,15 +219,17 @@ void Worker::dcFsbProcess()
 			multicastDelta(lclDelta);
 		else if(opt->mode.find("grp") !=std::string::npos)
 			grpcastDelta(lclDelta);
+		stat.t_dlt_send += tmr.elapseSd();
 
 		double offset = tmrGlb.elapseSd(); // recompute the early received delta
 		for(double tt : deltaWaitT){
 			tt -= offset;
 		}
 		
+		tmr.restart();
 		tmrGlb.restart(); // for monitoring the delta ariving time
 		accumulateDelta(lclDelta, (int)localID);
-		stat.t_dlt_accumLcl+= tmr.elapseSd();
+		stat.t_dlt_accumLcl += tmr.elapseSd();
 
 		if(exitTrain){ break; }
 		// VLOG_EVERY_N(ln, 2) << "  DC: wait for delta from all other workers";
@@ -513,7 +515,7 @@ void Worker::accumulateDelta(std::vector<double>& delta, const int source, const
 {
 	lock_guard<mutex> lk(mDelta);
 	int powhlvl = pow(2, hlvl);
-	VLOG(2) << "accu delta from " << source << " with pow hlvl " << powhlvl << " indx size " << deltaIndx0.size();
+	// VLOG(2) << "accu delta from " << source << " with pow hlvl " << powhlvl << " indx size " << deltaIndx0.size();
 	if (deltaIndx0[source]) { // if a delta from source is already there
 		copyDelta(bufferDeltaExt, delta);
 		for (int i = 0; i < powhlvl && source+i < deltaIndx0.size(); i++) {
@@ -532,7 +534,7 @@ void Worker::accumulateDelta(std::vector<double>& delta, const int source, const
 		}
 		bfDeltaCnt += i;
 		if(bfDeltaCnt == nWorker) {
-			VLOG(2) << "broadcast rpl delta from " << localID;
+			// VLOG(2) << "broadcast rpl delta from " << localID;
 			// for(int i = 1; i < nWorker; i++) {
 			// 	net->send(wm.lid2nid(i), MType::DDeltaRPL, bufferDelta);
 			// }
@@ -586,7 +588,7 @@ void Worker::applyDelta(){
 		}
 		dt += std::to_string(deltaWaitT[i]) + ", ";
 	}
-	// DVLOG(2) << "Delta stats: " << curCalT << "||" <<  tt_delta_wait/cnt << " [" << dt;
+	VLOG_IF(iter<5, 1) << "Delta stats: " << curCalT << "||" <<  tt_delta_wait/cnt << " [" << dt;
 	// #endif
 
 	DVLOG(3) << "apply buffered delta : " << bufferDelta
@@ -775,15 +777,16 @@ void Worker::handleDeltaHrkycast(const std::string & data, const RPCInfo & info)
 }
 void Worker::handleDeltaGrpcast(const std::string & data, const RPCInfo & info)
 {
-	int src = wm.nid2lid(info.source);
+	deltaWaitT.push_back(tmrGlb.elapseSd());
 
+	int src = wm.nid2lid(info.source);
 	auto delta = deserialize<vector<double>>(data);
 	// VLOG(2) << "w" << localID << " receive delta " << delta.size();
 
 	// int diter = delta[delta.size()-1];
 	// delta.pop_back();
 	int hlvl = delta[delta.size()-1];
-	VLOG(2) << "receive accu delta from " << src << " size: " << delta.size() << " hlvl: " << hlvl;
+	// VLOG(2) << "receive accu delta from " << src << " size: " << delta.size() << " hlvl: " << hlvl;
 	delta.pop_back();
 
 	++stat.n_dlt_recv;
@@ -803,8 +806,9 @@ void Worker::handleDeltaGrpcast(const std::string & data, const RPCInfo & info)
 }
 void Worker::handleDeltaRPL(const std::string & data, const RPCInfo & info)
 {
+	deltaWaitT.push_back(tmrGlb.elapseSd());
 	int src = wm.nid2lid(info.source);
-	VLOG(2) << "receive replace delta from " << src;
+	// VLOG(2) << "receive replace delta from " << src;
 	auto delta = deserialize<vector<double>>(data);
 	bufferDelta = move(delta);
 	suDeltaAll.notify(); // notify full delta received
