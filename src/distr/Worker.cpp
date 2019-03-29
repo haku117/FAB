@@ -202,7 +202,7 @@ void Worker::dcFsbProcess()
 		// VLOG(2) << " calculate time: " << curCalT << " for dp: " << cnt;
 		double updateDpT = tmr.elapseSd() - curCalT;
 		updatePointer(cnt);
-		VLOG_IF(iter<2, 1) << "unit dp cal time for " << cnt << " : " << updateDpT/cnt;
+		VLOG_IF(iter<2, 1) << "unit dp cal time for " << cnt << " : " << curCalT/cnt;
 		VLOG_EVERY_N(ln, 3) << "  calculate delta with " << cnt << " data points";
 		// VLOG_EVERY_N(ln/10, 2) << "  current iter cal time: " << tmr.elapseSd();
 		stat.t_dlt_calc+= tmr.elapseSd();
@@ -519,7 +519,7 @@ void Worker::accumulateDelta(std::vector<double>& delta, const int source, const
 	// VLOG(2) << "accu delta from " << source << " with pow hlvl " << powhlvl << " indx size " << deltaIndx0.size();
 	if (deltaIndx0[source]) { // if a delta from source is already there
 		copyDelta(bufferDeltaExt, delta);
-		for (int i = 0; i < powhlvl && source+i < deltaIndx0.size(); i++) {
+		for (int i = 0; i < powhlvl && source+i < nWorker; i++) {
 			deltaIndx1[source + i] = true;
 		}
 		// bfDeltaCnt += 2^hlvl;
@@ -529,11 +529,13 @@ void Worker::accumulateDelta(std::vector<double>& delta, const int source, const
 		DVLOG_IF(deltaIndx1[source], 2) << " Dam WWWTTTFFFF number of delta applied &&&&&&&";
 		copyDelta(bufferDelta, delta);
 		int i = 0;
-		for ( ; i < powhlvl && source+i < deltaIndx0.size(); i++) {
+		for ( ; i < powhlvl && source+i < nWorker; i++) {
 			deltaIndx0[source + i] = true;
 			rph.input(typeDDeltaAll, source+i); // trigger the syncUnit counter
 		}
 		bfDeltaCnt += i;
+		VLOG(2) << "====accu delta from " << source << " with pow hlvl " << powhlvl 
+			<< " delta size " << i << " bfDeltaCnt " << bfDeltaCnt;
 		if(bfDeltaCnt == nWorker) {
 			// VLOG(2) << "broadcast rpl delta from " << localID;
 			// for(int i = 1; i < nWorker; i++) {
@@ -589,7 +591,7 @@ void Worker::applyDelta(){
 		}
 		dt += std::to_string(deltaWaitT[i]) + ", ";
 	}
-	// VLOG_IF(iter<5, 1) << "Delta stats: " << curCalT << "||" <<  tt_delta_wait/cnt << " [" << dt;
+	VLOG_IF(iter<5, 1) << "Delta stats: " << curCalT << "||" <<  tt_delta_wait/cnt << " [" << dt;
 	// #endif
 
 	DVLOG(3) << "apply buffered delta : " << bufferDelta
@@ -789,7 +791,7 @@ void Worker::handleDeltaGrpcast(const std::string & data, const RPCInfo & info)
 	int hlvl = delta[delta.size()-1];
 	VLOG_IF(diter != iter, 1) << "----receive accu delta from " << src << " size: " << delta.size() 
 		<< " hlvl: " << hlvl << " iter: " << iter;
-	VLOG(2) << "----receive accu delta from " << src << " size: " << delta.size() 
+	VLOG(3) << "----receive accu delta from " << src << " size: " << delta.size() 
 		<< " hlvl: " << hlvl << " iter: " << iter;
 	delta.pop_back();
 
