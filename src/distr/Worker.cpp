@@ -492,11 +492,12 @@ void Worker::grpcastDelta(std::vector<double>& delta)
 	// 	++stat.n_dlt_send;
 	// 	VLOG(3) << "delta sent to " << localID-1;
 	// }
-	if(localID!=0 && (mylvl == 0 || localID + int(pow(2, curHlvl)) >= nWorker)){ // # of workers is odd
+	if(localID!=0 && (mylvl == 0 || localID + 1 >= nWorker)){ // # of workers is odd
 		delta.push_back(mylvl); // add hierarchy level
+		delta.push_back(iter); // add iter #
 		net->send(wm.lid2nid(dstgrpID), MType::DDelta, delta);
 		++stat.n_dlt_send;
-		VLOG(3) << "delta sent to " << dstgrpID << " w hlvl: " << mylvl;
+		VLOG(2) << "delta sent to " << dstgrpID << " w hlvl: " << mylvl;
 	}
 }
 
@@ -588,7 +589,7 @@ void Worker::applyDelta(){
 		}
 		dt += std::to_string(deltaWaitT[i]) + ", ";
 	}
-	VLOG_IF(iter<5, 1) << "Delta stats: " << curCalT << "||" <<  tt_delta_wait/cnt << " [" << dt;
+	// VLOG_IF(iter<5, 1) << "Delta stats: " << curCalT << "||" <<  tt_delta_wait/cnt << " [" << dt;
 	// #endif
 
 	DVLOG(3) << "apply buffered delta : " << bufferDelta
@@ -783,10 +784,13 @@ void Worker::handleDeltaGrpcast(const std::string & data, const RPCInfo & info)
 	auto delta = deserialize<vector<double>>(data);
 	// VLOG(2) << "w" << localID << " receive delta " << delta.size();
 
-	// int diter = delta[delta.size()-1];
-	// delta.pop_back();
+	int diter = delta[delta.size()-1];
+	delta.pop_back();
 	int hlvl = delta[delta.size()-1];
-	// VLOG(2) << "receive accu delta from " << src << " size: " << delta.size() << " hlvl: " << hlvl;
+	VLOG_IF(diter != iter, 1) << "----receive accu delta from " << src << " size: " << delta.size() 
+		<< " hlvl: " << hlvl << " iter: " << iter;
+	VLOG(2) << "----receive accu delta from " << src << " size: " << delta.size() 
+		<< " hlvl: " << hlvl << " iter: " << iter;
 	delta.pop_back();
 
 	++stat.n_dlt_recv;
@@ -799,7 +803,7 @@ void Worker::handleDeltaGrpcast(const std::string & data, const RPCInfo & info)
 	if(localID!=0 && (curHlvl == mylvl || localID + int(pow(2, curHlvl)) >= nWorker)) {
 		// VLOG(2) << "transmit delta from " << localID << " to: " << dstgrpID << " hlvl: " << hlvl;
 		bufferDelta.push_back(mylvl);
-		// bufferDelta.push_back(diter);
+		bufferDelta.push_back(diter);
 		net->send(wm.lid2nid(dstgrpID), MType::DDelta, bufferDelta);
 		++stat.n_dlt_send;
 	}
