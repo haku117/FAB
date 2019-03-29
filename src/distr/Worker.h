@@ -60,9 +60,12 @@ private:
 	void broadcastDeltaPlus(std::vector<double>& delta);
 	void ringcastDelta(std::vector<double>& delta);
 	void multicastDelta(std::vector<double>& delta);
+	void hrkycastDelta(std::vector<double>& delta);
+	void grpcastDelta(std::vector<double>& delta);
 
 	void accumulateDelta(const std::vector<double>& delta);
-	void accumulateDelta(std::vector<double>& delta, const int source);
+	void accumulateDelta(std::vector<double>& delta, const int source, const size_t hlvl = 0);
+	void accumulateDelta(std::vector<double>& delta, const std::vector<int>& sources);
 	void accumulateDeltaPipe(std::vector<double>& delta, const int source, const int dIter);
 	void copyDelta(std::vector<double>& buffer, std::vector<double>& delta);
 	void applyDelta();
@@ -82,6 +85,9 @@ public:
 	void handleDeltaPipe(const std::string& data, const RPCInfo& info);
 	void handleDeltaRingcast(const std::string& data, const RPCInfo& info);
 	void handleDeltaMltcast(const std::string& data, const RPCInfo& info);
+	void handleDeltaHrkycast(const std::string& data, const RPCInfo& info);
+	void handleDeltaGrpcast(const std::string& data, const RPCInfo& info);
+	void handleDeltaRPL(const std::string& data, const RPCInfo& info);
 
 	void handleReply(const std::string& data, const RPCInfo& info);
 	void handleWorkerList(const std::string& data, const RPCInfo& info);
@@ -93,6 +99,9 @@ public:
 	void handleContinue(const std::string& data, const RPCInfo& info);
 	void handleTerminate(const std::string& data, const RPCInfo& info);
 		
+// util
+	size_t id2lvl(const size_t id);
+	int dstGrpID(const size_t id, const size_t lvl);
 
 private:
 	size_t dataPointer;
@@ -115,6 +124,9 @@ private:
 	Timer tmrGlb; // for monitoring the delta ariving time
 	double curCalT;
 	int mltDD;
+	size_t curHlvl;
+	size_t mylvl;
+	size_t dstgrpID;
 
 	int blkNum, nny; // block size for pipeline running
 	int stale; // record the current iter for updated param
@@ -127,6 +139,10 @@ private:
 
 	std::vector<double> bufferDelta;	// buffer the delta from other workers
 	std::vector<double> bufferDeltaExt;	// buffer the multiple delta from other workers
+	std::vector<int> accuDelta; // accumulate delta stats
+	std::vector<int> accuDeltaExt;
+	std::vector<double> bufferDeltaLeftover;	// buffer the delta from other workers
+	std::vector<double> bufferDeltaLeftoverExt;	// buffer the multiple delta from other workers
 	std::vector<bool> deltaIndx0;		// delta buffer indicator
 	std::vector<bool> deltaIndx1;
 	std::vector<bool> deltaReceiver;

@@ -1,5 +1,6 @@
 #include "Util.h"
 #include <vector>
+#include "math.h"
 #include <algorithm>
 
 #if defined(_WIN32) || defined(_WIN64)

@@ -149,7 +149,7 @@ int main(int argc, char* argv[]){
 	const bool write = !opt.fnOutput.empty();
 
 	DataHolder dh(false, 1, 0);
-	if(opt.alg == "nmf")
+	if(opt.alg.find("nmf") !=std::string::npos)
 		dh.loadNMF(opt.fnData, ",", opt.algParam, false, true);
 	else
 		dh.load(opt.fnData, ",", opt.idSkip, opt.idY, false, true);

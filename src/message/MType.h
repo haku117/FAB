@@ -18,6 +18,7 @@ struct MType {
 	static constexpr int DRParameter = 11;
 	static constexpr int DDelta = 15;
 	static constexpr int DRDelta = 16;
+	static constexpr int DDeltaRPL = 17;
 
 	// Working Control
 	static constexpr int CTrainPause = 20;

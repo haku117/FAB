@@ -131,6 +131,7 @@ Master::callback_t Master::localCBBinder(
 void Master::dcInit()
 {
 	regDSPProcess(MType::DDelta, localCBBinder(&Master::handleDeltaDC));
+	regDSPProcess(MType::DDeltaRPL, localCBBinder(&Master::handleDeltaDC));
 }
 
 void Master::dcProcess()
@@ -143,11 +144,11 @@ void Master::dcProcess()
 			tl = t;
 		}
 		VLOG_EVERY_N(ln, 1)<<"Start iteration: "<<iter;
-///		waitDeltaFromAll();
+		VLOG(2) << "Master wait for new param";
 		waitParameter(); // wait one parameter update
+		VLOG(2) << "Master received new param";
 
 		VLOG_EVERY_N(ln, 2) << "  DC: receive new parameters";
-///		broadcastParameter();
 		archiveProgress();
 		//waitParameterConfirmed();
 		++iter;
@@ -327,7 +328,7 @@ void Master::initializeParameter()
 	suXLength.reset();
 	if(opt->algorighm == "km") {
 		model.init(opt->algorighm, nx, opt->algParam, candiParam);
-	}else if(opt->algorighm == "nmf") {
+	}else if(opt->algorighm.find("nmf") !=std::string::npos) {
 		model.init(opt->algorighm, nx, opt->algParam, unsigned(1)); // seed 1??
 	}
 	else
@@ -358,7 +359,7 @@ bool Master::needArchive()
 {
 	if(!foutput.is_open())
 		return false;
-	if(opt->algorighm == "km" || opt->algorighm == "nmf") {
+	if(opt->algorighm == "km" || opt->algorighm.find("nmf") !=std::string::npos) {
 		if(iter < 8 || iter == 10 || iter == 14 || iter == 19
 			|| iter - lastArchIter >= lastArchIter / 2
 			|| tmrArch.elapseSd() >= opt->arvTime)
@@ -569,7 +570,7 @@ void Master::handleDeltaFab(const std::string & data, const RPCInfo & info)
 
 void Master::handleDeltaTail(const std::string & data, const RPCInfo & info)
 {	
-	if(opt->algorighm != "km") {
+	if(opt->algorighm != "km" && opt->algorighm.find("nmf")!=std::string::npos) {
 		Timer tmr;
 		auto delta = deserialize<vector<double>>(data);
 		stat.t_data_deserial += tmr.elapseSd();
@@ -587,11 +588,13 @@ void Master::handleDeltaDC(const std::string & data, const RPCInfo & info)
 
 /// update parameter from worker (DC)
 void Master::handleParameter(const std::string & data, const RPCInfo & info)
-{
+{	
+	VLOG(2) << "Master receive parameter: ";
 	auto weights = deserialize<vector<double>>(data);
+	VLOG(2) << "receive parameter: " << weights.size() << "; " << model.paramWidth();
 	Parameter p;
 	p.set(move(weights));
-	// VLOG(1) << "apply parameter: " << nIterChange << "; " << p.weights;
+	VLOG(2) << "apply parameter: " << nIterChange << "; " << p.weights;
 	checkParamChange(p);
 	model.setParameter(p);
 	suParam.notify();

@@ -71,7 +71,7 @@ std::pair<size_t, std::vector<double>> EM::batchDelta(
 {
 	size_t end = start + cnt;
 
-	Timer tmr;
+	// Timer tmr;
 	if(this->pm->kernelName() == "nmf") {
 		size_t nx = pm->paramWidth();
 		vector<double> delta(nx, 0.0);
@@ -80,14 +80,16 @@ std::pair<size_t, std::vector<double>> EM::batchDelta(
 		size_t counter = 0;
 		for(dp = start; dp < end && (cond.load() || dp == start); ++dp){
 			size_t i = dp % pd->size(); 	// round the data set
+			// if (i > 2490){
+			// 	VLOG(2) << " process dp " << i << " " << pd->get(i).x <<" from total " << pd->size();
+			// }
 			std::vector<double> d = pm->gradient(pd->get(i));
 			for(size_t j = 0; j < d.size(); ++j)
 				delta[j] += rate * d[j];
 			counter++;
-			// if (counter % 100 == 0)
 			// accumuteDeltaSave(delta, d);
 		}
-		VLOG(2) << " unit dp cal time for " << counter << " : " << tmr.elapseSd()/counter;
+		// VLOG(2) << " unit dp cal time for " << counter << " : " << tmr.elapseSd()/counter;
 		return make_pair(dp - start, move(delta));
 	}
 

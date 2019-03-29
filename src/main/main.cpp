@@ -55,7 +55,7 @@ int main(int argc, char* argv[]){
 		VLOG(2) << "Loading data";
 		DataHolder dh(false, opt.nw, lid);
 		try{
-			if(opt.algorighm == "nmf") 
+			if(opt.algorighm.find("nmf") !=std::string::npos) 
 				dh.loadNMF(opt.fnData, ",", opt.algParam, opt.header, true);
 			else
 				dh.load(opt.fnData, ",", opt.idSkip, opt.idY, opt.header, true);

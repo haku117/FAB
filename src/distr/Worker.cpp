@@ -6,6 +6,7 @@
 #include "train/EM.h"
 #include "train/GD.h"
 #include "util/Util.h"
+#include "math.h"
 #include <unistd.h>
 
 using namespace std;
@@ -54,7 +55,7 @@ void Worker::init(const Option* opt, const size_t lid)
 
 	if (opt->algorighm == "km") {
 		trainer = new EM;
-	}else if (opt->algorighm == "nmf") {
+	}else if (opt->algorighm.find("nmf") !=std::string::npos) {
 		trainer = new EM;
 		trainer->setRate(opt->lrate);
 	}else {
@@ -69,6 +70,9 @@ void Worker::init(const Option* opt, const size_t lid)
 	tmrGlb.restart();
 	curCalT = 0;
 	deltaWaitT = std::vector<double>();
+	curHlvl = 0;
+	mylvl = localID == 0? nWorker :id2lvl(localID);
+	dstgrpID = dstGrpID(localID, mylvl);
 
 	/// multicast
 	mltDD = 3; /// multicast degree
@@ -158,7 +162,10 @@ void Worker::dcSyncInit()
 		regDSPProcess(MType::DDelta, localCBBinder(&Worker::handleDeltaRingcast)); /// handle delta
 	else if(opt->mode.find("dcmlt") !=std::string::npos)
 		regDSPProcess(MType::DDelta, localCBBinder(&Worker::handleDeltaMltcast)); /// handle delta
-
+	else if(opt->mode.find("grp") !=std::string::npos) {
+		regDSPProcess(MType::DDelta, localCBBinder(&Worker::handleDeltaGrpcast)); /// handle delta
+		regDSPProcess(MType::DDeltaRPL, localCBBinder(&Worker::handleDeltaRPL));
+	}
 	// addRPHAnySU(typeDDeltaAny, suDeltaAny);
 	addRPHEachSU(typeDDeltaAll, suDeltaAll);
 }
@@ -184,7 +191,7 @@ void Worker::pipeInit()
 void Worker::dcFsbProcess()
 {	
 	while(!exitTrain){
-		VLOG_EVERY_N(ln, 1) << "Iteration " << iter << ": calculate delta";
+		VLOG_EVERY_N(ln, 1) << "Iteration " << iter << ": calculate delta from " << dataPointer;
 		Timer tmr;
 		size_t cnt;
 		
@@ -193,12 +200,13 @@ void Worker::dcFsbProcess()
 		tie(cnt, lclDelta) = trainer->batchDelta(allowTrain, dataPointer, localBatchSize, true);
 		curCalT = tmr.elapseSd();
 		// VLOG(2) << " calculate time: " << curCalT << " for dp: " << cnt;
-		updatePointer(cnt);
 		double updateDpT = tmr.elapseSd() - curCalT;
+		updatePointer(cnt);
+		VLOG_IF(iter<2, 1) << "unit dp cal time for " << cnt << " : " << updateDpT/cnt;
 		VLOG_EVERY_N(ln, 3) << "  calculate delta with " << cnt << " data points";
 		// VLOG_EVERY_N(ln/10, 2) << "  current iter cal time: " << tmr.elapseSd();
 		stat.t_dlt_calc+= tmr.elapseSd();
-		VLOG_EVERY_N(ln, 3) << "  send delta";
+		// VLOG_EVERY_N(ln, 3) << "  send delta";
 
 		tmr.restart();
 		if(allowTrain == true) { broadcastSignalPause();}
@@ -209,6 +217,8 @@ void Worker::dcFsbProcess()
 			ringcastDelta(lclDelta);
 		else if(opt->mode.find("dcmlt") !=std::string::npos)
 			multicastDelta(lclDelta);
+		else if(opt->mode.find("grp") !=std::string::npos)
+			grpcastDelta(lclDelta);
 
 		double offset = tmrGlb.elapseSd(); // recompute the early received delta
 		for(double tt : deltaWaitT){
@@ -228,8 +238,10 @@ void Worker::dcFsbProcess()
 		if(exitTrain){ break; }
 
 		tmr.restart();
+		// VLOG(2) << "GO applyDelta ";
 		applyDelta();
 		resumeTrain();
+		// VLOG(2) << "Resume train ";
 		if(localID == 0)	/// send record to master only for worker 0
 			sendParameter2M(); /// update parameter to master
 		stat.t_par_calc += tmr.elapseSd();
@@ -239,6 +251,7 @@ void Worker::dcFsbProcess()
 		// 	<< " wait delta time: " << wT << " update param time: " << tmr.elapseSd();
 
 		deltaReceiver.assign(nWorker, false);
+		curHlvl = 0;
 		++iter;
 	}
 }
@@ -257,6 +270,8 @@ void Worker::pipeProcess()
 		tie(cnt, lclDelta) = trainer->batchDeltaPipe(allowTrain, blkPointer[blk], 
 			localBatchSize, blk, blkSize, true);
 		updatePointerPipe(cnt, blk);
+		/// chech the dp cal time wont be affected by the number of workers
+		VLOG_IF(iter<2, 1) << "unit dp cal time for " << cnt << " : " << tmr.elapseSd()/cnt;
 		VLOG_EVERY_N(ln, 3) << "  calculate delta with " << cnt << " data points in T:" 
 			<< tmr.elapseSd();
 		stat.t_dlt_calc+= tmr.elapseSd();
@@ -271,6 +286,8 @@ void Worker::pipeProcess()
 			ringcastDelta(lclDelta);
 		else if(opt->mode.find("mlt") !=std::string::npos)
 			multicastDelta(lclDelta);
+		else if(opt->mode.find("hrky") !=std::string::npos)
+			hrkycastDelta(lclDelta);
 
 		accumulateDeltaPipe(lclDelta, (int)localID, iter);
 		stat.t_dlt_accumLcl+= tmr.elapseSd();
@@ -311,6 +328,12 @@ void Worker::initPipeBlk()
 {
 	/// for pipe
 	blkNum = 3; /// 3 level pipeline
+	size_t indx;
+	if 	( opt->algorighm.find("nmf") !=std::string::npos
+		&& (indx = opt->algorighm.find(",")) != std::string::npos ){
+			blkNum = stoi(opt->algorighm.substr(indx+1));
+		} 
+
 	stale = 0;
 
 	// parse input param for nnx and nny
@@ -442,6 +465,38 @@ void Worker::multicastDelta(std::vector<double>& delta)
 	}
 	++stat.n_dlt_send;
 }
+void Worker::hrkycastDelta(std::vector<double>& delta)
+{
+	delta.push_back(0); // add hierarchy level
+	delta.push_back(iter); // add delta iter #
+	delta.push_back(localID); // add original source
+	delta.push_back(1); // add delta count
+	accuDelta.push_back(localID); // local accumulated delta
+	
+	int nb = localID % 2 == 0 ? localID + 1 : localID - 1;
+	if (nb < nWorker){
+		net->send(wm.lid2nid(nb), MType::DDelta, delta);
+	}
+	++stat.n_dlt_send;
+}
+void Worker::grpcastDelta(std::vector<double>& delta)
+{	
+	// if(localID % 2 != 0) { // none leader node
+
+	// 	VLOG(3) << "send delta from " << localID << " to grpLeader " << localID-1;
+	// 	delta.push_back(0); // add hierarchy level
+	// 	// delta.push_back(iter); // add delta iter #
+	// 	net->send(wm.lid2nid(localID-1), MType::DDelta, delta);
+	// 	++stat.n_dlt_send;
+	// 	VLOG(3) << "delta sent to " << localID-1;
+	// }
+	if(localID!=0 && (mylvl == 0 || localID + int(pow(2, curHlvl)) >= nWorker)){ // # of workers is odd
+		delta.push_back(mylvl); // add hierarchy level
+		net->send(wm.lid2nid(dstgrpID), MType::DDelta, delta);
+		++stat.n_dlt_send;
+		VLOG(3) << "delta sent to " << dstgrpID << " w hlvl: " << mylvl;
+	}
+}
 
 //////====== Process delta
 void Worker::waitDeltaFromAll(){
@@ -454,20 +509,58 @@ void Worker::accumulateDelta(const std::vector<double>& delta)
 	for (size_t i = 0; i < delta.size(); ++i)
 		bfDelta[i] += delta[i];
 }
-void Worker::accumulateDelta(std::vector<double>& delta, const int source)
+void Worker::accumulateDelta(std::vector<double>& delta, const int source, const size_t hlvl)
 {
 	lock_guard<mutex> lk(mDelta);
+	int powhlvl = pow(2, hlvl);
+	VLOG(2) << "accu delta from " << source << " with pow hlvl " << powhlvl << " indx size " << deltaIndx0.size();
 	if (deltaIndx0[source]) { // if a delta from source is already there
 		copyDelta(bufferDeltaExt, delta);
-		deltaIndx1[source] = true;
-		bfDeltaCnt++;
+		for (int i = 0; i < powhlvl && source+i < deltaIndx0.size(); i++) {
+			deltaIndx1[source + i] = true;
+		}
+		// bfDeltaCnt += 2^hlvl;
 		// DVLOG_IF(bfDeltaCnt > nWorker, 2) << " Dam MORE number of delta applied &&&&&&&";
 	}
 	else {
 		DVLOG_IF(deltaIndx1[source], 2) << " Dam WWWTTTFFFF number of delta applied &&&&&&&";
 		copyDelta(bufferDelta, delta);
-		deltaIndx0[source] = true;
-		rph.input(typeDDeltaAll, source); // trigger the syncUnit counter
+		int i = 0;
+		for ( ; i < powhlvl && source+i < deltaIndx0.size(); i++) {
+			deltaIndx0[source + i] = true;
+			rph.input(typeDDeltaAll, source+i); // trigger the syncUnit counter
+		}
+		bfDeltaCnt += i;
+		if(bfDeltaCnt == nWorker) {
+			VLOG(2) << "broadcast rpl delta from " << localID;
+			// for(int i = 1; i < nWorker; i++) {
+			// 	net->send(wm.lid2nid(i), MType::DDeltaRPL, bufferDelta);
+			// }
+			net->broadcast(MType::DDeltaRPL, bufferDelta);
+		}
+	}
+}
+void Worker::accumulateDelta(std::vector<double>& delta, const std::vector<int>& sources)
+{
+	lock_guard<mutex> lk(mDelta);
+	if (deltaIndx0[sources[0]]) { // if a delta from source is already there
+		copyDelta(bufferDeltaExt, delta);
+		// deltaIndx1[sources[0]] = true;
+		for (int ss : sources){
+			deltaIndx1[ss] = true;
+		}
+		accuDeltaExt.insert(accuDeltaExt.end(), sources.begin(), sources.end());
+		bfDeltaCnt += sources.size();
+		// DVLOG_IF(bfDeltaCnt > nWorker, 2) << " Dam MORE number of delta applied &&&&&&&";
+	}
+	else {
+		// DVLOG_IF(deltaIndx1[source], 2) << " Dam WWWTTTFFFF number of delta applied &&&&&&&";
+		copyDelta(bufferDelta, delta);
+		for (int ss : sources){
+			deltaIndx0[ss] = true;
+			rph.input(typeDDeltaAll, ss); // trigger the syncUnit counter
+		}
+		accuDelta.insert(accuDelta.end(), sources.begin(), sources.end());
 	}
 }
 void Worker::copyDelta(std::vector<double>& buffer, std::vector<double>& delta){
@@ -642,6 +735,80 @@ void Worker::handleDeltaMltcast(const std::string & data, const RPCInfo & info)
 		accumulateDelta(delta, orig);
 		++stat.n_dlt_recv;
 	}
+}
+void Worker::handleDeltaHrkycast(const std::string & data, const RPCInfo & info)
+{
+	int src = wm.nid2lid(info.source);
+
+	auto delta = deserialize<vector<double>>(data);
+	// VLOG(2) << "w" << localID << " receive delta " << delta.size();
+
+	int deltaCnt = delta[delta.size()-1];
+	delta.pop_back();
+	std::vector<int> origs;
+
+	for(int i = 0; i < deltaCnt; i++){
+		origs.push_back((int)delta[delta.size()-1]);
+		delta.pop_back();
+	}
+	int diter = delta[delta.size()-1];
+	delta.pop_back();
+	int hlvl = delta[delta.size()-1] + 1;
+	delta.pop_back();
+
+	++stat.n_dlt_recv;
+	/// accumulate delta
+	accumulateDelta(delta, origs);
+
+	// transmit buffer delta
+	bufferDelta.push_back(hlvl);
+	bufferDelta.push_back(diter);
+	bufferDelta.insert(bufferDelta.end(), accuDelta.begin(), accuDelta.end());
+	bufferDelta.push_back(accuDelta.size());
+	
+	int nb = localID + pow(2, hlvl);
+
+	// reset bufferDelta
+	for (int i = 0; i < 3 + accuDelta.size(); i++){
+		bufferDelta.pop_back();
+	}
+}
+void Worker::handleDeltaGrpcast(const std::string & data, const RPCInfo & info)
+{
+	int src = wm.nid2lid(info.source);
+
+	auto delta = deserialize<vector<double>>(data);
+	// VLOG(2) << "w" << localID << " receive delta " << delta.size();
+
+	// int diter = delta[delta.size()-1];
+	// delta.pop_back();
+	int hlvl = delta[delta.size()-1];
+	VLOG(2) << "receive accu delta from " << src << " size: " << delta.size() << " hlvl: " << hlvl;
+	delta.pop_back();
+
+	++stat.n_dlt_recv;
+
+	/// accumulate delta
+	accumulateDelta(delta, src, hlvl);
+	curHlvl++;
+
+	// transmit buffer delta
+	if(localID!=0 && (curHlvl == mylvl || localID + int(pow(2, curHlvl)) >= nWorker)) {
+		// VLOG(2) << "transmit delta from " << localID << " to: " << dstgrpID << " hlvl: " << hlvl;
+		bufferDelta.push_back(mylvl);
+		// bufferDelta.push_back(diter);
+		net->send(wm.lid2nid(dstgrpID), MType::DDelta, bufferDelta);
+		++stat.n_dlt_send;
+	}
+}
+void Worker::handleDeltaRPL(const std::string & data, const RPCInfo & info)
+{
+	int src = wm.nid2lid(info.source);
+	VLOG(2) << "receive replace delta from " << src;
+	auto delta = deserialize<vector<double>>(data);
+	bufferDelta = move(delta);
+	suDeltaAll.notify(); // notify full delta received
+	// VLOG(2) << "notify suDeltaAll at " << localID;
 }
 void Worker::handleDeltaPipe(const std::string & data, const RPCInfo & info)
 {
@@ -1082,3 +1249,15 @@ void Worker::handleTerminate(const std::string & data, const RPCInfo & info)
 	sendReply(info);
 }
 //\\\\\\ Basic Handler function end \\\\\\\\//
+
+
+///// util functions /////
+size_t Worker::id2lvl(const size_t id){
+	size_t i = 0;
+	for ( ;(id % int(pow(2, i+1))) == 0; i++){}
+	return i;
+}
+
+int Worker::dstGrpID(const size_t id, const size_t lvl){
+	return id - id % int(pow(2, lvl+1));
+}

@@ -16,7 +16,7 @@ Kernel* KernelFactory::generate(const std::string& name){
 		return new CNN();
 	else if(name == "km")
 		return new Kmeans();
-	else if(name == "nmf")
+	else if(name.find("nmf") !=std::string::npos)
 		return new NMF();
 	else
 		throw invalid_argument("do not support the method: " + name);
