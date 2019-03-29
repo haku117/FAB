@@ -2,6 +2,7 @@ import random
 import timeit
 import sys
 import numpy as np
+import csv
 
 MAX = 10
 
@@ -40,11 +41,60 @@ def KMgenMatrix(file_name, dim, num, seed):
         for i in dd:
             str_d += str(i) + ','
         ff.write(str_d[:len(str_d)-1] + '\n')
+        if j%num == 1000:
+            s2 = timeit.default_timer()
+            print("generate", j, "lines in", str(s2 - s0), " s")
 
     s2 = timeit.default_timer()
     print("finish data generation in " + str(s2 - s0) + " s")
-
     ff.close()
+
+def KMgenMatrix2(file_name, dim, num):
+
+    ff = open(file_name + ".csv", 'w')
+
+    s0 = timeit.default_timer()
+    for j in range(num):
+        dd = np.random.randint(1, high=MAX, size=dim)
+        #dd2 = np.random.rand(dim)
+        s3 = timeit.default_timer()
+        str_d = ""
+        for i in range(len(dd)-1):
+            str_d += str(dd[i]) + ','
+            #ff.write(str(dd[i])+',')
+        #s4 = timeit.default_timer()
+        #str_d2 = ""
+        #for i in range(len(dd2)-1):
+        #    str_d2 += str(dd2[i]*10)[2] + ','
+            #ff.write(str(dd[i])+',')
+        s5 = timeit.default_timer()
+
+        ff.write(str_d + str(dd[i])+'\n')
+
+        if j%200 == 199:
+            s2 = timeit.default_timer()
+            print("generate", j, "lines in", str(s2 - s0), "s with",(s5-s3),(s2-s5))
+
+    s2 = timeit.default_timer()
+    print("finish data generation in " + str(s2 - s0) + " s")
+    ff.close()
+
+
+def KMgenMatrix3(file_name, dim, num):
+    with open(file_name+'.csv', 'wb') as ff:
+        lw = csv.writer(ff, delimiter=',')
+
+        s0 = timeit.default_timer()
+        for j in range(num):
+            dd = np.random.randint(1, high=MAX, size=dim)
+            s5 = timeit.default_timer()
+            lw.writerow(dd)
+            if j%200 == 199:
+                s2 = timeit.default_timer()
+                print("generate", j, "lines in", str(s2 - s0), "s with",(s2-s5))
+
+        s2 = timeit.default_timer()
+        print("finish data generation in " + str(s2 - s0) + " s")
 
 
 def KMgen(file_name, k, dim, num, seed):
@@ -188,7 +238,10 @@ if __name__ == '__main__':
     print("KMgen write to file " + file_name)
 
     start = timeit.default_timer()
-    KMgenMatrix(file_name, dim, num, 0)
+    if k > 0:
+        KMgenMatrix(file_name, dim, num, 0)
+    else:
+        KMgenMatrix3(file_name, dim, num)
     end = timeit.default_timer()
 
     print("KMgen finish in " + str((end - start)) + " s")
