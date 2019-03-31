@@ -153,12 +153,24 @@ std::vector<int> parseParam(const std::string& param){
 	std::vector<int> tokens;
 	std::string delimiter = ",";
 	while ((pend = param.find(delimiter, pstart)) != std::string::npos) {
-    	tokens.push_back(stoi(param.substr(pstart, pend)));
+    	tokens.push_back(str2int(param.substr(pstart, pend)));
     	pstart = pend + delimiter.length();
 	}
-    tokens.push_back(stoi(param.substr(pstart)));
+    tokens.push_back(str2int(param.substr(pstart)));
 	// if(tokens.size() != 3){
 	// 	cout << "incorrect params for NMF: " << tokens.size();
 	// }
 	return tokens;
+}
+
+int str2int(const std::string& token){
+	int pend = 0;
+	if (pend = token.find('k')!= std::string::npos){
+		int rtn = stod(token.substr(0, pend)) * 1000;
+		return rtn;
+	} else if (pend = token.find('m')!= std::string::npos){
+		int rtn = stod(token.substr(0, pend)) * 1000000;
+		return rtn;
+	}
+	return stoi(token);
 }

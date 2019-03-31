@@ -16,3 +16,4 @@ size_t stoulKMG(const std::string & str, const bool binary = false);
 
 void accumuteDeltaSave(std::vector<double>& delta, std::vector<double>& d);
 std::vector<int> parseParam(const std::string& param);
+int str2int(const std::string& token);

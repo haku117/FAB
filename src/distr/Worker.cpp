@@ -219,8 +219,6 @@ void Worker::dcFsbProcess()
 			ringcastDelta(lclDelta);
 		else if(opt->mode.find("dcmlt") !=std::string::npos)
 			multicastDelta(lclDelta);
-		else if(opt->mode.find("grp") !=std::string::npos)
-			grpcastDelta(lclDelta);
 		stat.t_dlt_send += tmr.elapseSd();
 
 		double offset = tmrGlb.elapseSd(); // recompute the early received delta
@@ -230,7 +228,13 @@ void Worker::dcFsbProcess()
 		
 		tmr.restart();
 		tmrGlb.restart(); // for monitoring the delta ariving time
-		accumulateDelta(lclDelta, (int)localID);
+		if(opt->mode.find("grp") !=std::string::npos) {
+			accumulateDelta(lclDelta, (int)localID, 0, iter);
+			grpcastDelta();
+		} 
+		else {
+			accumulateDelta(lclDelta, (int)localID);
+		}
 		stat.t_dlt_accumLcl += tmr.elapseSd();
 
 		if(exitTrain){ break; }
@@ -242,18 +246,11 @@ void Worker::dcFsbProcess()
 		if(exitTrain){ break; }
 
 		tmr.restart();
-		// VLOG(2) << "GO applyDelta ";
 		applyDelta();
-		resetDcBuffer();
 		resumeTrain();
-		// VLOG(2) << "Resume train ";
 		if(localID == 0)	/// send record to master only for worker 0
 			sendParameter2M(); /// update parameter to master
 		stat.t_par_calc += tmr.elapseSd();
-
-		// VLOG(2) << " calculate time: " << curCalT << " for dp: " << cnt 
-		// 	<< " update pointer time: " << updateDpT
-		// 	<< " wait delta time: " << wT << " update param time: " << tmr.elapseSd();
 
 		deltaReceiver.assign(nWorker, false);
 		curHlvl = 0;
@@ -484,28 +481,18 @@ void Worker::hrkycastDelta(std::vector<double>& delta)
 	}
 	++stat.n_dlt_send;
 }
-void Worker::grpcastDelta(std::vector<double>& delta)
+void Worker::grpcastDelta()
 {	
-	// if(localID % 2 != 0) { // none leader node
-
-	// 	VLOG(3) << "send delta from " << localID << " to grpLeader " << localID-1;
-	// 	delta.push_back(0); // add hierarchy level
-	// 	// delta.push_back(iter); // add delta iter #
-	// 	net->send(wm.lid2nid(localID-1), MType::DDelta, delta);
-	// 	++stat.n_dlt_send;
-	// 	VLOG(3) << "delta sent to " << localID-1;
-	// }
 	if(localID!=0 /// final group leader 
 		&& (mylvl == 0 // lvl 0 workers, localID == odd
 			|| localID + 1 >= nWorker // single even last worker
 			|| bfDeltaCnt == int(pow(2, mylvl)) ) ){ // required delta has already been received
 
-		VLOG_IF(bfDeltaCnt > 0 , 1) << " ****** send orig adv delta: " << bfDeltaCnt;
-		// delta.push_back(mylvl); // add hierarchy level
-		delta.push_back(iter); // add iter #
-		net->send(wm.lid2nid(dstgrpID), MType::DDelta, delta);
+		// VLOG_IF(bfDeltaCnt > 0 , 1) << " ****** send orig adv delta: " << bfDeltaCnt;
+		bufferDelta.push_back(iter); // add iter #
+		net->send(wm.lid2nid(dstgrpID), MType::DDelta, bufferDelta);
 		++stat.n_dlt_send;
-		VLOG(2) << "delta sent to " << dstgrpID << " w hlvl: " << mylvl;
+		// VLOG(2) << "delta sent to " << dstgrpID << " w hlvl: " << mylvl;
 	}
 }
 
@@ -520,6 +507,21 @@ void Worker::accumulateDelta(const std::vector<double>& delta)
 	for (size_t i = 0; i < delta.size(); ++i)
 		bfDelta[i] += delta[i];
 }
+void Worker::accumulateDelta(std::vector<double>& delta, const int source)
+{
+	lock_guard<mutex> lk(mDelta);
+	if (deltaIndx0[source]) { // if a delta from source is already there
+		copyDelta(bufferDeltaExt, delta);
+		deltaIndx1[source] = true;
+		bfDeltaCnt++;
+	}
+	else {
+		DVLOG_IF(deltaIndx1[source], 1) << "xxxxxxxx Dam WWWTTTFFFF number of delta applied &&&&&&&";
+		copyDelta(bufferDelta, delta);
+		deltaIndx0[source] = true;
+		rph.input(typeDDeltaAll, source); // trigger the syncUnit counter
+	}
+}
 void Worker::accumulateDelta(std::vector<double>& delta, const int source, const size_t hlvl, const size_t diter)
 {
 	lock_guard<mutex> lk(mDelta);
@@ -527,28 +529,18 @@ void Worker::accumulateDelta(std::vector<double>& delta, const int source, const
 	int newcnt = powhlvl + source > nWorker ? nWorker - source : powhlvl;
 	int i = 0;
 
-	// VLOG(2) << "accu delta from " << source << " with pow hlvl " << powhlvl << " indx size " << deltaIndx0.size();
-	if (deltaIndx0[source]) { // if a delta from source is already there
-		DVLOG(1) << "|||||||| process advanced delta from s: " << source << " indx: " << deltaIndx0;
-		copyDelta(bufferDeltaExt, delta);
-		for (; i < powhlvl && source+i < nWorker; i++) {
-			deltaIndx1[source + i] = true;
-		}
-		bfDeltaCntExt += newcnt;
-		DVLOG_IF(i != newcnt, 1) << "xxxxxxxxx MM Exxxt for " << i << " -> " << newcnt 
-			<< " at s: " << source << " hlvl: " << hlvl;
-		isbfDeltaExt = true;
-	}
-	else {
-		DVLOG_IF(deltaIndx1[source], 1) << "xxxxxxxxxx Dam WWWTTTFFFF number of delta applied";
+	// if (deltaIndx0[source]) { // if a delta from source is already there
+	// 	// DVLOG(1) << "|||||||| process advanced delta from s: " << source << " indx: " << deltaIndx0;
+	// 	copyDelta(bufferDeltaExt, delta);
+	// 	for (; i < powhlvl && source+i < nWorker; i++) {
+	// 		deltaIndx1[source + i] = true;
+	// 	}
+	// 	bfDeltaCntExt += newcnt;
+	// }
+	// else {
+		DVLOG_IF(deltaIndx0[source], 1) << "xxxxxxx process advanced delta from s: " << source << " indx: " << deltaIndx0;
 		copyDelta(bufferDelta, delta);
 		bfDeltaCnt += newcnt;
-
-		VLOG_IF(isbfDeltaExt, 1) << "####### accu delta from " << source << " with pow hlvl " << powhlvl 
-			<< " delta size " << newcnt << " bfDeltaCnt " << bfDeltaCnt << " indx: " << deltaIndx0;
-
-		VLOG(3) << "==== accu delta from " << source << " with pow hlvl " << powhlvl 
-			<< " delta size " << newcnt << " bfDeltaCnt " << bfDeltaCnt;
 			
 		if(bfDeltaCnt == nWorker) {
 			// VLOG(2) << "broadcast rpl delta from " << localID;
@@ -557,14 +549,11 @@ void Worker::accumulateDelta(std::vector<double>& delta, const int source, const
 			// }
 			net->broadcast(MType::DDeltaRPL, bufferDelta);
 		}
-
 		for ( ; i < powhlvl && source+i < nWorker; i++) {
 			deltaIndx0[source + i] = true;
 			rph.input(typeDDeltaAll, source+i); // trigger the syncUnit counter
 		}
-		DVLOG_IF(i != newcnt, 1) << "xxxxxxxxx MissMatch for " << i << " -> " << newcnt 
-			<< " at s: " << source << " hlvl: " << hlvl;
-	}
+	// }
 }
 void Worker::accumulateDelta(std::vector<double>& delta, const std::vector<int>& sources)
 {
@@ -599,8 +588,8 @@ void Worker::copyDelta(std::vector<double>& buffer, std::vector<double>& delta){
 			buffer[i] += delta[i];
 	}
 }
+
 void Worker::applyDelta(){
-	// #if DEBUG
 	/// show delta stats
 	double tt_delta_wait = 0;
 	string dt = "";
@@ -614,33 +603,31 @@ void Worker::applyDelta(){
 	}
 	VLOG_IF(iter<5 && (localID < 9 || localID % 4 == 0), 1) << "Delta stats: " << curCalT 
 		<< "||" <<  tt_delta_wait/cnt << " [" << dt << "]";
-	// #endif
 
-	DVLOG(3) << "apply buffered delta : " << bufferDelta
-		<< "\nonto: " << model.getParameter().weights;
+	/// apply delta to param
+	DVLOG(3) << "apply buffered delta : " << bufferDelta << "\nonto: " << model.getParameter().weights;
 	model.accumulateParameter(bufferDelta, factorDelta);
+	
+	//// reset buffer
+	if(isbfDeltaExt){
+		isbfDeltaExt = false;
+	} else {
+		resetDcBuffer();
+	}
 }
 
 void Worker::transmitDelta(int src, int diter){
 
-	// transmit buffer delta
+	lock_guard<mutex> lk(mDelta);
 	if(localID != 0  /// final group leader 
 		&& (curHlvl == mylvl // reach transimit lvl
 			|| bfDeltaCnt == int(pow(2, mylvl)) // required delta has already been received
 			|| localID + bfDeltaCnt > nWorker)) { // received enough delta 
-		// VLOG(2) << "transmit delta from " << localID << " to: " << dstgrpID << " hlvl: " << hlvl;
 
-		DVLOG_IF(curHlvl != mylvl && bfDeltaCnt == int(pow(2, mylvl)), 1) 
-			<< " ****** send adv delta: " << bfDeltaCnt 
-			<< " rec from: " << src << " curHlvl: " << curHlvl;
-		DVLOG_IF(curHlvl != mylvl && (localID + bfDeltaCnt > nWorker), 1) 
-			<< " ****** send adv delta Conner cnt: " << bfDeltaCnt
-			<< " rec from: " << src << " curHlvl: " << curHlvl;
-
-		// bufferDelta.push_back(mylvl);
 		bufferDelta.push_back(diter);
 		net->send(wm.lid2nid(dstgrpID), MType::DDelta, bufferDelta);
 
+		/// reset the buffer immidiately for later delta
 		bufferDelta.clear();
 		deltaIndx0.assign(nWorker, false);
 		bfDeltaCnt = 0;
@@ -853,12 +840,15 @@ void Worker::handleDeltaGrpcast(const std::string & data, const RPCInfo & info)
 	int hlvl = id2lvl(src);
 	VLOG_IF(diter != iter, 1) << "----receive accu delta from " << src << " size: " << delta.size() 
 		<< " hlvl: " << hlvl << " iter: " << iter << " diter: " << diter;
-	VLOG(3) << "----receive accu delta from " << src << " size: " << delta.size() 
-		<< " hlvl: " << hlvl << " iter: " << iter;
+	// VLOG(3) << "----receive accu delta from " << src << " size: " << delta.size() 
+	// 	<< " hlvl: " << hlvl << " iter: " << iter;
 	// delta.pop_back();
 
 	++stat.n_dlt_recv;
-
+	
+	if(diter > iter){ /// avoid double reset
+		isbfDeltaExt = true;
+	}
 	/// accumulate delta
 	accumulateDelta(delta, src, hlvl, diter);
 	curHlvl++;

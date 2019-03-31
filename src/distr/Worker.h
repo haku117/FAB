@@ -61,11 +61,12 @@ private:
 	void ringcastDelta(std::vector<double>& delta);
 	void multicastDelta(std::vector<double>& delta);
 	void hrkycastDelta(std::vector<double>& delta);
-	void grpcastDelta(std::vector<double>& delta);
+	void grpcastDelta();
 
 	void accumulateDelta(const std::vector<double>& delta);
+	void accumulateDelta(std::vector<double>& delta, const int source);
 	void accumulateDelta(std::vector<double>& delta, const int source, 
-		const size_t hlvl = 0, const size_t diter = 0);
+		const size_t hlvl, const size_t diter);
 	void accumulateDelta(std::vector<double>& delta, const std::vector<int>& sources);
 	void accumulateDeltaPipe(std::vector<double>& delta, const int source, const int dIter);
 	void copyDelta(std::vector<double>& buffer, std::vector<double>& delta);
