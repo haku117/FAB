@@ -88,7 +88,7 @@ void Worker::init(const Option* opt, const size_t lid)
 	} else if(opt->mode.find("dc") !=std::string::npos){
 		dcSyncInit();
 	} else if(opt->mode.find("pipe") !=std::string::npos){
-		LOG(INFO) << "pipe Initalization";
+		DLOG_IF(localID < 4, INFO) << "pipe Initalization";
 		pipeInit();
 	}
 }
@@ -99,16 +99,16 @@ void Worker::run()
 	startMsgLoop(logName+"-MSG"); // make a new thread to record messages
 
 	LOG(INFO) << "start";
-	DLOG(INFO) << "send online message";
+	DLOG_IF(localID < 4, INFO) << "send online message";
 	sendOnline();
 
-	DLOG(INFO) << "waiting worker list";
+	DLOG_IF(localID < 4, INFO) << "waiting worker list";
 	waitWorkerList();
-	DLOG(INFO) << "send x length " << trainer->pd->xlength();
+	DLOG_IF(localID < 4, INFO) << "send x length " << trainer->pd->xlength();
 	sendXLength(); // x dimension
-	DLOG(INFO) << "waiting init parameter";
+	DLOG_IF(localID < 4, INFO) << "waiting init parameter";
 	waitParameter();
-	DLOG(INFO) << "got init parameter";
+	// DLOG(INFO) << "got init parameter";
 	model.init(opt->algorighm, trainer->pd->xlength(), opt->algParam);
 	trainer->bindModel(&model); /// move
 	trainer->initState(1);
@@ -116,7 +116,7 @@ void Worker::run()
 	applyBufferParameter();
 	resumeTrain();
 
-	DLOG(INFO) << "start training with mode: " << opt->mode << ", local batch size: " << localBatchSize;
+	DLOG_IF(localID < 4, INFO) << "start training with mode: " << opt->mode << ", local batch size: " << localBatchSize;
 	iter = 0;
 	//try{
 	//	generalProcess();
@@ -1194,7 +1194,7 @@ void Worker::handleWorkerList(const std::string & data, const RPCInfo & info)
 	auto res = deserialize<vector<pair<int, int>>>(data);
 	stat.t_data_deserial += tmr.elapseSd();
 	for(auto& p : res){
-		DLOG(INFO)<<"register nid "<<p.first<<" with lid "<<p.second;
+		DLOG_IF(nWorker<6, INFO)<<"register nid "<<p.first<<" with lid "<<p.second;
 		wm.registerID(p.first, p.second);
 	}
 	//rph.input(MType::CWorkers, info.source);

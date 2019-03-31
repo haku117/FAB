@@ -55,6 +55,6 @@ void Trainer::applyDelta(const vector<double>& delta, const double factor)
 }
 
 void Trainer::initState (int dim){
-	DLOG(INFO) << "Trainer init State ??";
+	// DLOG(INFO) << "Trainer init State ??";
 	return;
 }
