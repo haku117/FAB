@@ -147,7 +147,7 @@ private:
 	std::vector<bool> deltaIndx1;
 	std::vector<bool> deltaReceiver;
 	std::vector<double> deltaWaitT;	// record the delta arriving time
-	int bfDeltaCnt;
+	int bfDeltaCnt, bfDeltaCntExt;
 	
 	bool hasNewParam;
 	std::mutex mParam;

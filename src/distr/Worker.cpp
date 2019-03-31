@@ -33,6 +33,7 @@ Worker::Worker() : Runner() {
 	nUpdate = 0;
 	lastArchIter = 0;
 	bfDeltaCnt = 0;
+	bfDeltaCntExt = 0;
 
 	suOnline.reset();
 	suParam.reset();
@@ -94,11 +95,11 @@ void Worker::init(const Option* opt, const size_t lid)
 }
 void Worker::run()
 {
-	LOG(INFO) << "register handlers";
+	LOG_IF(localID < 4, INFO) << "register handlers";
 	registerHandlers();  // register message with function, function need to wrap up
 	startMsgLoop(logName+"-MSG"); // make a new thread to record messages
 
-	LOG(INFO) << "start";
+	LOG_IF(localID < 4, INFO) << "start";
 	DLOG_IF(localID < 4, INFO) << "send online message";
 	sendOnline();
 
@@ -134,7 +135,7 @@ void Worker::run()
 	// } else if(opt->mode == "dcsync"){
 	// 	dcSyncProcess();
 	} else if(opt->mode.find("dc") !=std::string::npos){
-		LOG(INFO) << "dcFsb Process ";
+		LOG_IF(localID < 4, INFO) << "dcFsb Process ";
 		dcFsbProcess();
 	} else if(opt->mode.find("pipe") !=std::string::npos){
 		LOG(INFO) << "pipe Process" ;
@@ -202,7 +203,7 @@ void Worker::dcFsbProcess()
 		// VLOG(2) << " calculate time: " << curCalT << " for dp: " << cnt;
 		double updateDpT = tmr.elapseSd() - curCalT;
 		updatePointer(cnt);
-		VLOG_IF(iter<2, 1) << "unit dp cal time for " << cnt << " : " << curCalT/cnt;
+		VLOG_IF(iter<2 && (localID < 9), 1) << "unit dp cal time for " << cnt << " : " << curCalT/cnt;
 		VLOG_EVERY_N(ln, 3) << "  calculate delta with " << cnt << " data points";
 		// VLOG_EVERY_N(ln/10, 2) << "  current iter cal time: " << tmr.elapseSd();
 		stat.t_dlt_calc+= tmr.elapseSd();
@@ -516,20 +517,26 @@ void Worker::accumulateDelta(std::vector<double>& delta, const int source, const
 {
 	lock_guard<mutex> lk(mDelta);
 	int powhlvl = pow(2, hlvl);
+	int newcnt = powhlvl + source > nWorker ? nWorker - source : powhlvl;
+	int i = 0;
+
 	// VLOG(2) << "accu delta from " << source << " with pow hlvl " << powhlvl << " indx size " << deltaIndx0.size();
 	if (deltaIndx0[source]) { // if a delta from source is already there
+		DVLOG(1) << "==== process advanced delta from s: " << source;
 		copyDelta(bufferDeltaExt, delta);
-		for (int i = 0; i < powhlvl && source+i < nWorker; i++) {
+		for (; i < powhlvl && source+i < nWorker; i++) {
 			deltaIndx1[source + i] = true;
 		}
+		bfDeltaCntExt += newcnt;
+		DVLOG_IF(i != newcnt, 1) << "xxxxxxxxx MM Exxxt for " << i << " -> " << newcnt 
+			<< " at s: " << source << ' hlvl:' << hlvl;
 	}
 	else {
-		DVLOG_IF(deltaIndx1[source], 1) << " Dam WWWTTTFFFF number of delta applied &&&&&&&";
+		DVLOG_IF(deltaIndx1[source], 1) << "xxxxxxxxxx Dam WWWTTTFFFF number of delta applied";
 		copyDelta(bufferDelta, delta);
-		int i = 0;
-		int newcnt = powhlvl + source > nWorker ? powhlvl : nWorker - source;
 		bfDeltaCnt += newcnt;
-		VLOG(2) << "====accu delta from " << source << " with pow hlvl " << powhlvl 
+
+		VLOG(3) << "==== accu delta from " << source << " with pow hlvl " << powhlvl 
 			<< " delta size " << newcnt << " bfDeltaCnt " << bfDeltaCnt;
 			
 		if(bfDeltaCnt == nWorker) {
@@ -539,10 +546,13 @@ void Worker::accumulateDelta(std::vector<double>& delta, const int source, const
 			// }
 			net->broadcast(MType::DDeltaRPL, bufferDelta);
 		}
+
 		for ( ; i < powhlvl && source+i < nWorker; i++) {
 			deltaIndx0[source + i] = true;
 			rph.input(typeDDeltaAll, source+i); // trigger the syncUnit counter
 		}
+		DVLOG_IF(i != newcnt, 1) << "xxxxxxxxx MissMatch for " << i << " -> " << newcnt 
+			<< " at s: " << source << ' hlvl:' << hlvl;
 	}
 }
 void Worker::accumulateDelta(std::vector<double>& delta, const std::vector<int>& sources)
@@ -591,7 +601,8 @@ void Worker::applyDelta(){
 		}
 		dt += std::to_string(deltaWaitT[i]) + ", ";
 	}
-	VLOG_IF(iter<5, 1) << "Delta stats: " << curCalT << "||" <<  tt_delta_wait/cnt << " [" << dt;
+	VLOG_IF(iter<5 && (localID < 9 || localID % 4 == 0), 1) << "Delta stats: " << curCalT 
+		<< "||" <<  tt_delta_wait/cnt << " [" << dt << "]";
 	// #endif
 
 	DVLOG(3) << "apply buffered delta : " << bufferDelta
@@ -599,10 +610,11 @@ void Worker::applyDelta(){
 	model.accumulateParameter(bufferDelta, factorDelta);
 
 	/// resetDcBuffer
-	DVLOG_IF(bfDeltaCnt > 0, 3) << "reset buffered delta index: " << deltaIndx1
+	DVLOG_IF(bfDeltaCntExt > 0, 1) << "reset buffered delta for " << bfDeltaCntExt << " from: " << deltaIndx1
 		<< "\nto: " << deltaIndx0;
 	bufferDelta = move(bufferDeltaExt);
 	bufferDeltaExt.clear();
+	bfDeltaCntExt = 0;
 	for(int i = 0; i < deltaIndx1.size(); i++){
 		if(deltaIndx1[i]){
 			rph.input(typeDDeltaAll, i); // add accumulated syncUnit counter
@@ -1189,7 +1201,7 @@ void Worker::handleReply(const std::string& data, const RPCInfo& info) {
 }
 void Worker::handleWorkerList(const std::string & data, const RPCInfo & info)
 {
-	DLOG(INFO) << "receive worker list";
+	DLOG_IF(localID < 4, INFO) << "receive worker list";
 	Timer tmr;
 	auto res = deserialize<vector<pair<int, int>>>(data);
 	stat.t_data_deserial += tmr.elapseSd();
