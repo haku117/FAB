@@ -498,6 +498,7 @@ void Worker::grpcastDelta(std::vector<double>& delta)
 			|| localID + 1 >= nWorker // single even last worker
 			|| bfDeltaCnt + 1 == int(pow(2, mylvl)) ) ){ // required delta has already been received
 
+		VLOG_IF(bfDeltaCnt + 1 == int(pow(2, mylvl)) , 1) << " ****** send adv delta cnt: " << bfDeltaCnt;
 		delta.push_back(mylvl); // add hierarchy level
 		delta.push_back(iter); // add iter #
 		net->send(wm.lid2nid(dstgrpID), MType::DDelta, delta);
@@ -825,6 +826,10 @@ void Worker::handleDeltaGrpcast(const std::string & data, const RPCInfo & info)
 			// || localID + int(pow(2, curHlvl)) >= nWorker)) { // received enough delta 
 			|| localID + bfDeltaCnt + 1 >= nWorker)) { // received enough delta 
 		// VLOG(2) << "transmit delta from " << localID << " to: " << dstgrpID << " hlvl: " << hlvl;
+
+		DVLOG_IF(bfDeltaCnt + 1 == int(pow(2, mylvl)), 1) << " ****** send adv delta cnt: " << bfDeltaCnt;
+		DVLOG_IF(localID + bfDeltaCnt + 1 >= nWorker, 1) << " ****** send adv delta Conner cnt: " << bfDeltaCnt;
+
 		bufferDelta.push_back(mylvl);
 		bufferDelta.push_back(diter);
 		net->send(wm.lid2nid(dstgrpID), MType::DDelta, bufferDelta);
