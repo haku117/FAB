@@ -33,7 +33,7 @@ void Runner::stopMsgLoop(){
 }
 
 void Runner::msgLoop(const std::string& name) {
-	DLOG(INFO) << "Message loop started on " << name;
+	DLOG_IF(localID < 4, INFO) << "Message loop started on " << name;
 	if(!name.empty()){
 		setLogThreadName(name);
 	}
@@ -58,7 +58,7 @@ void Runner::msgLoop(const std::string& name) {
 		}
 		sleep();
 	}
-	DLOG(INFO) << "Message loop exited on " << name;
+	DLOG_IF(localID < 4, INFO) << "Message loop exited on " << name;
 }
 
 void Runner::finishStat()
