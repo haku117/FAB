@@ -64,11 +64,14 @@ private:
 	void grpcastDelta(std::vector<double>& delta);
 
 	void accumulateDelta(const std::vector<double>& delta);
-	void accumulateDelta(std::vector<double>& delta, const int source, const size_t hlvl = 0);
+	void accumulateDelta(std::vector<double>& delta, const int source, 
+		const size_t hlvl = 0, const size_t diter = 0);
 	void accumulateDelta(std::vector<double>& delta, const std::vector<int>& sources);
 	void accumulateDeltaPipe(std::vector<double>& delta, const int source, const int dIter);
 	void copyDelta(std::vector<double>& buffer, std::vector<double>& delta);
 	void applyDelta();
+	void transmitDelta(int src, int diter);
+	void resetDcBuffer();
 	void applyDeltaPipe();
 	void waitDeltaFromAll();
 

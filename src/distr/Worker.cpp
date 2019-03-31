@@ -244,6 +244,7 @@ void Worker::dcFsbProcess()
 		tmr.restart();
 		// VLOG(2) << "GO applyDelta ";
 		applyDelta();
+		resetDcBuffer();
 		resumeTrain();
 		// VLOG(2) << "Resume train ";
 		if(localID == 0)	/// send record to master only for worker 0
@@ -497,7 +498,7 @@ void Worker::grpcastDelta(std::vector<double>& delta)
 	if(localID!=0 /// final group leader 
 		&& (mylvl == 0 // lvl 0 workers, localID == odd
 			|| localID + 1 >= nWorker // single even last worker
-			|| bfDeltaCnt + 1 == int(pow(2, mylvl)) ) ){ // required delta has already been received
+			|| bfDeltaCnt == int(pow(2, mylvl)) ) ){ // required delta has already been received
 
 		VLOG_IF(bfDeltaCnt > 0 , 1) << " ****** send orig adv delta: " << bfDeltaCnt;
 		// delta.push_back(mylvl); // add hierarchy level
@@ -519,7 +520,7 @@ void Worker::accumulateDelta(const std::vector<double>& delta)
 	for (size_t i = 0; i < delta.size(); ++i)
 		bfDelta[i] += delta[i];
 }
-void Worker::accumulateDelta(std::vector<double>& delta, const int source, const size_t hlvl)
+void Worker::accumulateDelta(std::vector<double>& delta, const int source, const size_t hlvl, const size_t diter)
 {
 	lock_guard<mutex> lk(mDelta);
 	int powhlvl = pow(2, hlvl);
@@ -528,7 +529,7 @@ void Worker::accumulateDelta(std::vector<double>& delta, const int source, const
 
 	// VLOG(2) << "accu delta from " << source << " with pow hlvl " << powhlvl << " indx size " << deltaIndx0.size();
 	if (deltaIndx0[source]) { // if a delta from source is already there
-		DVLOG(1) << "|||||||| process advanced delta from s: " << source;
+		DVLOG(1) << "|||||||| process advanced delta from s: " << source << " indx: " << deltaIndx0;
 		copyDelta(bufferDeltaExt, delta);
 		for (; i < powhlvl && source+i < nWorker; i++) {
 			deltaIndx1[source + i] = true;
@@ -618,8 +619,38 @@ void Worker::applyDelta(){
 	DVLOG(3) << "apply buffered delta : " << bufferDelta
 		<< "\nonto: " << model.getParameter().weights;
 	model.accumulateParameter(bufferDelta, factorDelta);
+}
 
+void Worker::transmitDelta(int src, int diter){
+
+	// transmit buffer delta
+	if(localID != 0  /// final group leader 
+		&& (curHlvl == mylvl // reach transimit lvl
+			|| bfDeltaCnt == int(pow(2, mylvl)) // required delta has already been received
+			|| localID + bfDeltaCnt > nWorker)) { // received enough delta 
+		// VLOG(2) << "transmit delta from " << localID << " to: " << dstgrpID << " hlvl: " << hlvl;
+
+		DVLOG_IF(curHlvl != mylvl && bfDeltaCnt == int(pow(2, mylvl)), 1) 
+			<< " ****** send adv delta: " << bfDeltaCnt 
+			<< " rec from: " << src << " curHlvl: " << curHlvl;
+		DVLOG_IF(curHlvl != mylvl && (localID + bfDeltaCnt > nWorker), 1) 
+			<< " ****** send adv delta Conner cnt: " << bfDeltaCnt
+			<< " rec from: " << src << " curHlvl: " << curHlvl;
+
+		// bufferDelta.push_back(mylvl);
+		bufferDelta.push_back(diter);
+		net->send(wm.lid2nid(dstgrpID), MType::DDelta, bufferDelta);
+
+		bufferDelta.clear();
+		deltaIndx0.assign(nWorker, false);
+		bfDeltaCnt = 0;
+		++stat.n_dlt_send;
+	}
+}
+
+void Worker::resetDcBuffer(){
 	/// resetDcBuffer
+	lock_guard<mutex> lk(mDelta);
 	DVLOG_IF(bfDeltaCntExt > 0, 1) << "reset buffered delta for " << bfDeltaCntExt << " from: " << deltaIndx1
 		<< "\nto: " << deltaIndx0;
 	deltaWaitT.clear();
@@ -643,6 +674,7 @@ void Worker::applyDelta(){
 	bfDeltaCnt = bfDeltaCntExt;
 	bfDeltaCntExt = 0;
 }
+
 void Worker::applyDeltaPipe(){
 
 	DVLOG(3) << "apply buffered delta : " << bfBlkDelta[curDeltaIndex]
@@ -828,28 +860,9 @@ void Worker::handleDeltaGrpcast(const std::string & data, const RPCInfo & info)
 	++stat.n_dlt_recv;
 
 	/// accumulate delta
-	accumulateDelta(delta, src, hlvl);
+	accumulateDelta(delta, src, hlvl, diter);
 	curHlvl++;
-
-	// transmit buffer delta
-	if(localID != 0  /// final group leader 
-		&& (curHlvl == mylvl // reach transimit lvl
-			|| bfDeltaCnt + 1 == int(pow(2, mylvl)) // required delta has already been received
-			// || localID + int(pow(2, curHlvl)) >= nWorker)) { // received enough delta 
-			|| localID + bfDeltaCnt + 1 >= nWorker)) { // received enough delta 
-		// VLOG(2) << "transmit delta from " << localID << " to: " << dstgrpID << " hlvl: " << hlvl;
-
-		DVLOG_IF(curHlvl != mylvl && bfDeltaCnt + 1 == int(pow(2, mylvl)), 1) 
-			<< " ****** send adv delta: " << bfDeltaCnt 
-			<< " rec from: " << src << " curHlvl: " << curHlvl;
-		DVLOG_IF(curHlvl != mylvl && (localID + bfDeltaCnt + 1 >= nWorker), 1) 
-			<< " ****** send adv delta Conner cnt: " << bfDeltaCnt << " curHlvl: " << curHlvl;
-
-		// bufferDelta.push_back(mylvl);
-		bufferDelta.push_back(diter);
-		net->send(wm.lid2nid(dstgrpID), MType::DDelta, bufferDelta);
-		++stat.n_dlt_send;
-	}
+	transmitDelta(src, diter);
 }
 void Worker::handleDeltaRPL(const std::string & data, const RPCInfo & info)
 {
