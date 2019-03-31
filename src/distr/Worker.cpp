@@ -522,26 +522,26 @@ void Worker::accumulateDelta(std::vector<double>& delta, const int source, const
 		for (int i = 0; i < powhlvl && source+i < nWorker; i++) {
 			deltaIndx1[source + i] = true;
 		}
-		// bfDeltaCnt += 2^hlvl;
-		// DVLOG_IF(bfDeltaCnt > nWorker, 2) << " Dam MORE number of delta applied &&&&&&&";
 	}
 	else {
-		DVLOG_IF(deltaIndx1[source], 2) << " Dam WWWTTTFFFF number of delta applied &&&&&&&";
+		DVLOG_IF(deltaIndx1[source], 1) << " Dam WWWTTTFFFF number of delta applied &&&&&&&";
 		copyDelta(bufferDelta, delta);
 		int i = 0;
-		for ( ; i < powhlvl && source+i < nWorker; i++) {
-			deltaIndx0[source + i] = true;
-			rph.input(typeDDeltaAll, source+i); // trigger the syncUnit counter
-		}
-		bfDeltaCnt += i;
+		int newcnt = powhlvl + source > nWorker ? powhlvl : nWorker - source;
+		bfDeltaCnt += newcnt;
 		VLOG(2) << "====accu delta from " << source << " with pow hlvl " << powhlvl 
-			<< " delta size " << i << " bfDeltaCnt " << bfDeltaCnt;
+			<< " delta size " << newcnt << " bfDeltaCnt " << bfDeltaCnt;
+			
 		if(bfDeltaCnt == nWorker) {
 			// VLOG(2) << "broadcast rpl delta from " << localID;
 			// for(int i = 1; i < nWorker; i++) {
 			// 	net->send(wm.lid2nid(i), MType::DDeltaRPL, bufferDelta);
 			// }
 			net->broadcast(MType::DDeltaRPL, bufferDelta);
+		}
+		for ( ; i < powhlvl && source+i < nWorker; i++) {
+			deltaIndx0[source + i] = true;
+			rph.input(typeDDeltaAll, source+i); // trigger the syncUnit counter
 		}
 	}
 }
