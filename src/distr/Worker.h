@@ -153,6 +153,7 @@ private:
 	std::vector<double> deltaWaitT;	// record the delta arriving time
 	int bfDeltaCnt, bfDeltaCntExt;
 	bool isbfDeltaExt;
+	std::vector<int> recSrcs; // list to send deltaRPL
 	
 	bool hasNewParam;
 	std::mutex mParam;

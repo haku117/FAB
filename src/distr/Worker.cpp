@@ -513,7 +513,7 @@ void Worker::accumulateDelta(std::vector<double>& delta, const int source)
 	if (deltaIndx0[source]) { // if a delta from source is already there
 		copyDelta(bufferDeltaExt, delta);
 		deltaIndx1[source] = true;
-		bfDeltaCnt++;
+		bfDeltaCntExt++;
 	}
 	else {
 		DVLOG_IF(deltaIndx1[source], 1) << "xxxxxxxx Dam WWWTTTFFFF number of delta applied &&&&&&&";
@@ -543,11 +543,14 @@ void Worker::accumulateDelta(std::vector<double>& delta, const int source, const
 		bfDeltaCnt += newcnt;
 			
 		if(bfDeltaCnt == nWorker) {
+			deltaWaitT.push_back(tmrGlb.elapseSd());
 			// VLOG(2) << "broadcast rpl delta from " << localID;
-			// for(int i = 1; i < nWorker; i++) {
-			// 	net->send(wm.lid2nid(i), MType::DDeltaRPL, bufferDelta);
-			// }
-			net->broadcast(MType::DDeltaRPL, bufferDelta);
+			for(int src : recSrcs) {
+				net->send(wm.lid2nid(src), MType::DDeltaRPL, bufferDelta);
+			}
+			recSrcs.clear();
+			// net->broadcast(MType::DDeltaRPL, bufferDelta);
+			deltaWaitT.push_back(tmrGlb.elapseSd());
 		}
 		for ( ; i < powhlvl && source+i < nWorker; i++) {
 			deltaIndx0[source + i] = true;
@@ -626,6 +629,8 @@ void Worker::transmitDelta(int src, int diter){
 
 		bufferDelta.push_back(diter);
 		net->send(wm.lid2nid(dstgrpID), MType::DDelta, bufferDelta);
+		if (localID * 2 == nWorker)
+			deltaWaitT.push_back(tmrGlb.elapseSd());
 
 		/// reset the buffer immidiately for later delta
 		bufferDelta.clear();
@@ -831,6 +836,7 @@ void Worker::handleDeltaGrpcast(const std::string & data, const RPCInfo & info)
 	deltaWaitT.push_back(tmrGlb.elapseSd());
 
 	int src = wm.nid2lid(info.source);
+	recSrcs.push_back(src);
 	auto delta = deserialize<vector<double>>(data);
 	// VLOG(2) << "w" << localID << " receive delta " << delta.size();
 
@@ -857,6 +863,12 @@ void Worker::handleDeltaGrpcast(const std::string & data, const RPCInfo & info)
 void Worker::handleDeltaRPL(const std::string & data, const RPCInfo & info)
 {
 	deltaWaitT.push_back(tmrGlb.elapseSd());
+
+	for(int src : recSrcs) {
+		net->send(wm.lid2nid(src), MType::DDeltaRPL, data);
+	}
+	recSrcs.clear();
+
 	int src = wm.nid2lid(info.source);
 	// VLOG(2) << "receive replace delta from " << src;
 	auto delta = deserialize<vector<double>>(data);
