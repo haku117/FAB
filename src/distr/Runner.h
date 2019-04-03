@@ -46,7 +46,7 @@ protected:
 
 // handler helpers
 protected:
-	using callback_t = std::function<void(const std::string&, const RPCInfo&)>;
+	using callback_t = std::function<void(std::string&, const RPCInfo&)>;
 	//using callback_t = void (Master::*)(const std::string&, const RPCInfo&);
 	//typedef void (Master::*callback_t)(const string&, const RPCInfo&);
 	virtual void registerHandlers() = 0;

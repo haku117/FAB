@@ -44,6 +44,11 @@ public:
 		send(new Task(dst, tag, move(msg)));
 		stat_send_time += tmr.elapseSd();
 	}
+	void send2(int dst, int tag, std::string&& msg) {
+		Timer tmr;
+		send(new Task(dst, tag, move(msg)));
+		stat_send_time += tmr.elapseSd();
+	}
 
 	template <class T>
 	void broadcast(int tag, const T& msg) {

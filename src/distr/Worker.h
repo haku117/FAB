@@ -15,7 +15,7 @@ public:
 	void bindDataset(const DataHolder* pdh);
 
 private:
-	callback_t localCBBinder(void (Worker::*fp)(const std::string&, const RPCInfo&));
+	callback_t localCBBinder(void (Worker::*fp)(std::string&, const RPCInfo&));
 	///=== Centralized model
 	void syncInit();
 	void syncProcess();
@@ -87,26 +87,26 @@ private:
 
 // singal
 public:
-	void handleDelta(const std::string& data, const RPCInfo& info);
-	void handleDeltaPipe(const std::string& data, const RPCInfo& info);
-	void handleDeltaRingcast(const std::string& data, const RPCInfo& info);
-	void handleDeltaMltcast(const std::string& data, const RPCInfo& info);
-	void handleDeltaHrkycast(const std::string& data, const RPCInfo& info);
-	void handleDeltaGrpcast(const std::string& data, const RPCInfo& info);
-	void handleDeltaRPL(const std::string& data, const RPCInfo& info);
-	void handleDeltaRPLone(const std::string& data, const RPCInfo& info);
-	void handleDeltaRPLtrans(const std::string& data, const RPCInfo& info);
-	void handleDelta2c(const std::string& data, const RPCInfo& info);
+	void handleDelta(std::string& data, const RPCInfo& info);
+	void handleDeltaPipe(std::string& data, const RPCInfo& info);
+	void handleDeltaRingcast(std::string& data, const RPCInfo& info);
+	void handleDeltaMltcast(std::string& data, const RPCInfo& info);
+	void handleDeltaHrkycast(std::string& data, const RPCInfo& info);
+	void handleDeltaGrpcast(std::string& data, const RPCInfo& info);
+	void handleDeltaRPL(std::string& data, const RPCInfo& info);
+	void handleDeltaRPLone(std::string& data, const RPCInfo& info);
+	void handleDeltaRPLtrans(std::string& data, const RPCInfo& info);
+	void handleDelta2c(std::string& data, const RPCInfo& info);
 
-	void handleReply(const std::string& data, const RPCInfo& info);
-	void handleWorkerList(const std::string& data, const RPCInfo& info);
-	void handleParameter(const std::string& data, const RPCInfo& info);
-	void handleParameterFab(const std::string& data, const RPCInfo& info);
-	void handleParameterFsb(const std::string& data, const RPCInfo& info);
-	void handlePause(const std::string& data, const RPCInfo& info);
-	void handleSync(const std::string& data, const RPCInfo& info);
-	void handleContinue(const std::string& data, const RPCInfo& info);
-	void handleTerminate(const std::string& data, const RPCInfo& info);
+	void handleReply(std::string& data, const RPCInfo& info);
+	void handleWorkerList(std::string& data, const RPCInfo& info);
+	void handleParameter(std::string& data, const RPCInfo& info);
+	void handleParameterFab(std::string& data, const RPCInfo& info);
+	void handleParameterFsb(std::string& data, const RPCInfo& info);
+	void handlePause(std::string& data, const RPCInfo& info);
+	void handleSync(std::string& data, const RPCInfo& info);
+	void handleContinue(std::string& data, const RPCInfo& info);
+	void handleTerminate(std::string& data, const RPCInfo& info);
 		
 // util
 	size_t id2lvl(const size_t id);

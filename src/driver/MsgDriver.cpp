@@ -12,7 +12,8 @@ using namespace std;
 
 //Helper
 MsgDriver::callback_t MsgDriver::GetDummyHandler(){
-	static callback_t dummy=[](const std::string&, const RPCInfo&){};
+	static callback_t dummy=[](std::string&, const RPCInfo&){};
+	// static callback_t dummy={};
 	return dummy;
 }
 MsgDriver::MsgDriver():running_(false)
@@ -35,7 +36,7 @@ bool MsgDriver::busy() const{
 
 //Register
 void MsgDriver::registerImmediateHandler(const int type, callback_t cb){
-	inDisper.registerDispFun(type,cb);
+	inDisper.registerDispFun(type, cb);
 }
 void MsgDriver::unregisterImmediateHandler(const int type){
 	inDisper.unregisterDispFun(type);

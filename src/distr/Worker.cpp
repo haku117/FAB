@@ -750,7 +750,7 @@ void Worker::accumulateDeltaPipe(std::vector<double>& delta, const int source, c
 }
 
 //////======  delta handler functions
-void Worker::handleDelta(const std::string & data, const RPCInfo & info)
+void Worker::handleDelta(std::string& data, const RPCInfo & info)
 {
 	auto delta = deserialize<vector<double>>(data);
 	int s = wm.nid2lid(info.source);
@@ -764,7 +764,7 @@ void Worker::handleDelta(const std::string & data, const RPCInfo & info)
 	//sendReply(info);
 	++stat.n_dlt_recv;
 }
-void Worker::handleDeltaRingcast(const std::string & data, const RPCInfo & info)
+void Worker::handleDeltaRingcast(std::string& data, const RPCInfo & info)
 {
 	int src = wm.nid2lid(info.source);
 
@@ -799,7 +799,7 @@ void Worker::handleDeltaRingcast(const std::string & data, const RPCInfo & info)
 		++stat.n_dlt_recv;
 	}
 }
-void Worker::handleDeltaMltcast(const std::string & data, const RPCInfo & info)
+void Worker::handleDeltaMltcast(std::string& data, const RPCInfo & info)
 {
 	int src = wm.nid2lid(info.source);
 
@@ -836,7 +836,7 @@ void Worker::handleDeltaMltcast(const std::string & data, const RPCInfo & info)
 		++stat.n_dlt_recv;
 	}
 }
-void Worker::handleDeltaHrkycast(const std::string & data, const RPCInfo & info)
+void Worker::handleDeltaHrkycast(std::string& data, const RPCInfo & info)
 {
 	int src = wm.nid2lid(info.source);
 
@@ -873,7 +873,7 @@ void Worker::handleDeltaHrkycast(const std::string & data, const RPCInfo & info)
 		bufferDelta.pop_back();
 	}
 }
-void Worker::handleDeltaGrpcast(const std::string & data, const RPCInfo & info)
+void Worker::handleDeltaGrpcast(std::string& data, const RPCInfo & info)
 {
 	deltaWaitT.push_back(tmrGlb.elapseSd());
 
@@ -902,23 +902,23 @@ void Worker::handleDeltaGrpcast(const std::string & data, const RPCInfo & info)
 	curHlvl++;
 	transmitDelta(src, diter);
 }
-void Worker::handleDeltaRPL(const std::string & data, const RPCInfo & info)
+void Worker::handleDeltaRPL(std::string& data, const RPCInfo & info)
 {
 	deltaWaitT.push_back(tmrGlb.elapseSd());
 
 	int src = wm.nid2lid(info.source);
 	VLOG(2) << "receive replace delta from " << src;
-	auto delta = deserialize<vector<double>>(data);
 	for(int ss : recSrcs) {
-		net->send(wm.lid2nid(ss), MType::DDeltaRPL, delta);
+		net->send(wm.lid2nid(ss), MType::DDeltaRPL, move(data));
 	}
 	recSrcs.clear();
 
+	auto delta = deserialize<vector<double>>(data);
 	bufferDelta = move(delta);
 	suDeltaAll.notify(); // notify full delta received
 	// VLOG(2) << "notify suDeltaAll at " << localID;
 }
-void Worker::handleDeltaRPLone(const std::string & data, const RPCInfo & info)
+void Worker::handleDeltaRPLone(std::string& data, const RPCInfo & info)
 {
 	deltaWaitT.push_back(tmrGlb.elapseSd());
 
@@ -929,21 +929,22 @@ void Worker::handleDeltaRPLone(const std::string & data, const RPCInfo & info)
 	suDeltaAll.notify(); // notify full delta received
 	// VLOG(2) << "notify suDeltaAll at " << localID;
 }
-void Worker::handleDeltaRPLtrans(const std::string & data, const RPCInfo & info)
+void Worker::handleDeltaRPLtrans(std::string& data, const RPCInfo & info)
 {
 	deltaWaitT.push_back(tmrGlb.elapseSd());
 
 	int src = wm.nid2lid(info.source);
-	VLOG(2) << "receive replace delta from " << src;
-	auto delta = deserialize<vector<double>>(data);
 	if(src + 1 < nWorker){
-		net->send(wm.lid2nid(src + 1), MType::DDeltaRPL, delta);
+		// string t=data;
+		net->send2(wm.lid2nid(src + 1), MType::DDeltaRPL, move(data));
 	}
+	VLOG(2) << "receive replace delta from " << src;
+	auto delta = deserialize<vector<double>>(data);
 	bufferDelta = move(delta);
 	suDeltaAll.notify(); // notify full delta received
 	// VLOG(2) << "notify suDeltaAll at " << localID;
 }
-void Worker::handleDelta2c(const std::string & data, const RPCInfo & info)
+void Worker::handleDelta2c(std::string& data, const RPCInfo & info)
 {
 	auto delta = deserialize<vector<double>>(data);
 	int src = wm.nid2lid(info.source);
@@ -965,7 +966,7 @@ void Worker::handleDelta2c(const std::string & data, const RPCInfo & info)
 
 	++stat.n_dlt_recv;
 }
-void Worker::handleDeltaPipe(const std::string & data, const RPCInfo & info)
+void Worker::handleDeltaPipe(std::string& data, const RPCInfo & info)
 {
 	int src = wm.nid2lid(info.source);
 	auto delta = deserialize<vector<double>>(data);
@@ -1300,7 +1301,7 @@ void Worker::dcSyncProcess()
 
 ///////---- Basic Handler function start ----/////////
 Worker::callback_t Worker::localCBBinder(
-	void (Worker::*fp)(const std::string&, const RPCInfo&))
+	void (Worker::*fp)(std::string&, const RPCInfo&))
 {
 	return bind(fp, this, placeholders::_1, placeholders::_2);
 }
@@ -1319,7 +1320,7 @@ void Worker::registerHandlers(){
 	addRPHAnySU(MType::CXLength, suXlength);
 }
 
-void Worker::handleReply(const std::string& data, const RPCInfo& info) {
+void Worker::handleReply(std::string& data, const RPCInfo& info) {
 	Timer tmr;
 	int type = deserialize<int>(data);
 	stat.t_data_deserial += tmr.elapseSd();
@@ -1332,7 +1333,7 @@ void Worker::handleReply(const std::string& data, const RPCInfo& info) {
 	}*/
 	rph.input(type, s.second);
 }
-void Worker::handleWorkerList(const std::string & data, const RPCInfo & info)
+void Worker::handleWorkerList(std::string& data, const RPCInfo & info)
 {
 	DLOG_IF(localID < 4, INFO) << "receive worker list";
 	Timer tmr;
@@ -1346,7 +1347,7 @@ void Worker::handleWorkerList(const std::string & data, const RPCInfo & info)
 	suOnline.notify();
 	sendReply(info);
 }
-void Worker::handleParameter(const std::string & data, const RPCInfo & info)
+void Worker::handleParameter(std::string& data, const RPCInfo & info)
 {
 	Timer tmr;
 	auto weights = deserialize<vector<double>>(data);
@@ -1358,7 +1359,7 @@ void Worker::handleParameter(const std::string & data, const RPCInfo & info)
 	//sendReply(info);
 	++stat.n_par_recv;
 }
-void Worker::handleParameterFab(const std::string & data, const RPCInfo & info)
+void Worker::handleParameterFab(std::string& data, const RPCInfo & info)
 {
 	Timer tmr;
 	auto weights = deserialize<vector<double>>(data);
@@ -1373,7 +1374,7 @@ void Worker::handleParameterFab(const std::string & data, const RPCInfo & info)
 	//applyBufferParameter();
 	++stat.n_par_recv;
 }
-void Worker::handleParameterFsb(const std::string & data, const RPCInfo & info)
+void Worker::handleParameterFsb(std::string& data, const RPCInfo & info)
 {
 	auto weights = deserialize<vector<double>>(data);
 	Parameter p;
@@ -1385,17 +1386,17 @@ void Worker::handleParameterFsb(const std::string & data, const RPCInfo & info)
 	// resumeTrain();
 	++stat.n_par_recv;
 }
-void Worker::handlePause(const std::string & data, const RPCInfo & info)
+void Worker::handlePause(std::string& data, const RPCInfo & info)
 {
 	pauseTrain();
 	sendReply(info);
 }
-void Worker::handleContinue(const std::string & data, const RPCInfo & info)
+void Worker::handleContinue(std::string& data, const RPCInfo & info)
 {
 	resumeTrain();
 	sendReply(info);
 }
-void Worker::handleTerminate(const std::string & data, const RPCInfo & info)
+void Worker::handleTerminate(std::string& data, const RPCInfo & info)
 {
 	exitTrain = true;
 	pauseTrain(); // in case if the system is calculating delta
