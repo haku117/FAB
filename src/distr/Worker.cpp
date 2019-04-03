@@ -167,6 +167,15 @@ void Worker::dcSyncInit()
 	else if(opt->mode.find("grp") !=std::string::npos) {
 		regDSPProcess(MType::DDelta, localCBBinder(&Worker::handleDeltaGrpcast)); /// handle delta
 		regDSPProcess(MType::DDeltaRPL, localCBBinder(&Worker::handleDeltaRPL));
+	} else if(opt->mode.find("master") !=std::string::npos) {
+		regDSPProcess(MType::DDelta, localCBBinder(&Worker::handleDelta)); /// handle delta
+		regDSPProcess(MType::DDeltaRPL, localCBBinder(&Worker::handleDeltaRPLone));
+	} else if(opt->mode.find("trans") !=std::string::npos) {
+		regDSPProcess(MType::DDelta, localCBBinder(&Worker::handleDelta)); /// handle delta
+		regDSPProcess(MType::DDeltaRPL, localCBBinder(&Worker::handleDeltaRPLtrans));
+	} else if(opt->mode.find("dc2c") !=std::string::npos) {
+		regDSPProcess(MType::DDelta, localCBBinder(&Worker::handleDelta2c)); /// handle delta
+		regDSPProcess(MType::DDeltaRPL, localCBBinder(&Worker::handleDeltaRPL));
 	}
 	// addRPHAnySU(typeDDeltaAny, suDeltaAny);
 	addRPHEachSU(typeDDeltaAll, suDeltaAll);
@@ -219,6 +228,12 @@ void Worker::dcFsbProcess()
 			ringcastDelta(lclDelta);
 		else if(opt->mode.find("dcmlt") !=std::string::npos)
 			multicastDelta(lclDelta);
+		else if(opt->mode.find("dcmaster") !=std::string::npos)
+			singlecastDelta(lclDelta);
+		else if(opt->mode.find("dc2c") !=std::string::npos)
+			dblecastDelta(lclDelta);
+		else if(opt->mode.find("dctrans") !=std::string::npos)
+			singlecastDelta(lclDelta);
 		stat.t_dlt_send += tmr.elapseSd();
 
 		double offset = tmrGlb.elapseSd(); // recompute the early received delta
@@ -246,6 +261,15 @@ void Worker::dcFsbProcess()
 		if(exitTrain){ break; }
 
 		tmr.restart();
+
+		/// send out final delta
+		if(opt->mode.find("dcmaster") !=std::string::npos && localID == 0){
+			for(int ss = 1; ss < nWorker; ss++)
+				net->send(wm.lid2nid(ss), MType::DDeltaRPL, bufferDelta);
+		}
+		else if(opt->mode.find("dctrans") !=std::string::npos && localID == 0)
+			net->send(wm.lid2nid(1), MType::DDeltaRPL, bufferDelta);
+
 		applyDelta();
 		resumeTrain();
 		if(localID == 0)	/// send record to master only for worker 0
@@ -496,6 +520,22 @@ void Worker::grpcastDelta()
 	}
 }
 
+void Worker::singlecastDelta(std::vector<double>& delta){
+	if (localID != 0){
+		// delta.push_back(iter); // add iter #
+		net->send(wm.lid2nid(0), MType::DDelta, delta);
+		++stat.n_dlt_send;
+	}
+}
+void Worker::dblecastDelta(std::vector<double>& delta){
+	if (localID > 1){
+		// delta.push_back(iter); // add iter #
+		net->send(wm.lid2nid(localID % 2), MType::DDelta, delta);
+		++stat.n_dlt_send;
+	}
+}
+
+
 //////====== Process delta
 void Worker::waitDeltaFromAll(){
 	suDeltaAll.wait();
@@ -519,6 +559,7 @@ void Worker::accumulateDelta(std::vector<double>& delta, const int source)
 		DVLOG_IF(deltaIndx1[source], 1) << "xxxxxxxx Dam WWWTTTFFFF number of delta applied &&&&&&&";
 		copyDelta(bufferDelta, delta);
 		deltaIndx0[source] = true;
+		bfDeltaCnt++;
 		rph.input(typeDDeltaAll, source); // trigger the syncUnit counter
 	}
 }
@@ -612,6 +653,7 @@ void Worker::applyDelta(){
 	model.accumulateParameter(bufferDelta, factorDelta);
 	
 	//// reset buffer
+	bfDeltaCnt = 0;
 	if(isbfDeltaExt){
 		isbfDeltaExt = false;
 	} else {
@@ -864,17 +906,64 @@ void Worker::handleDeltaRPL(const std::string & data, const RPCInfo & info)
 {
 	deltaWaitT.push_back(tmrGlb.elapseSd());
 
-	for(int src : recSrcs) {
-		net->send(wm.lid2nid(src), MType::DDeltaRPL, data);
+	int src = wm.nid2lid(info.source);
+	VLOG(2) << "receive replace delta from " << src;
+	auto delta = deserialize<vector<double>>(data);
+	for(int ss : recSrcs) {
+		net->send(wm.lid2nid(ss), MType::DDeltaRPL, delta);
 	}
 	recSrcs.clear();
 
+	bufferDelta = move(delta);
+	suDeltaAll.notify(); // notify full delta received
+	// VLOG(2) << "notify suDeltaAll at " << localID;
+}
+void Worker::handleDeltaRPLone(const std::string & data, const RPCInfo & info)
+{
+	deltaWaitT.push_back(tmrGlb.elapseSd());
+
 	int src = wm.nid2lid(info.source);
-	// VLOG(2) << "receive replace delta from " << src;
+	VLOG(2) << "receive replace delta from " << src;
 	auto delta = deserialize<vector<double>>(data);
 	bufferDelta = move(delta);
 	suDeltaAll.notify(); // notify full delta received
 	// VLOG(2) << "notify suDeltaAll at " << localID;
+}
+void Worker::handleDeltaRPLtrans(const std::string & data, const RPCInfo & info)
+{
+	deltaWaitT.push_back(tmrGlb.elapseSd());
+
+	int src = wm.nid2lid(info.source);
+	VLOG(2) << "receive replace delta from " << src;
+	auto delta = deserialize<vector<double>>(data);
+	if(src + 1 < nWorker){
+		net->send(wm.lid2nid(src + 1), MType::DDeltaRPL, delta);
+	}
+	bufferDelta = move(delta);
+	suDeltaAll.notify(); // notify full delta received
+	// VLOG(2) << "notify suDeltaAll at " << localID;
+}
+void Worker::handleDelta2c(const std::string & data, const RPCInfo & info)
+{
+	auto delta = deserialize<vector<double>>(data);
+	int src = wm.nid2lid(info.source);
+	deltaWaitT.push_back(tmrGlb.elapseSd());
+
+	VLOG(2) << "handle delta 2c from " << src;
+	accumulateDelta(delta, src);
+	if (bfDeltaCnt * 2 >= nWorker - localID % 2){
+		if((src + localID) == 1){
+			for(int ss = 2 ; ss < nWorker; ss += 2) {
+				net->send(wm.lid2nid(ss + localID), MType::DDeltaRPL, bufferDelta);
+			}
+			suDeltaAll.notify();
+		} else {
+			VLOG(2) << "transmit the accu delta to " << 1-localID;
+			net->send(wm.lid2nid(1 - localID), MType::DDelta, bufferDelta);
+		}
+	}
+
+	++stat.n_dlt_recv;
 }
 void Worker::handleDeltaPipe(const std::string & data, const RPCInfo & info)
 {

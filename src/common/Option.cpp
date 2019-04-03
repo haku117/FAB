@@ -103,7 +103,7 @@ bool Option::preprocessMode(){
 	}
 	if(mode == "sync" || mode == "async" || mode == "fsb" || mode == "fab" 
 		|| mode == "dcsync" || mode.find("dcfsb")!=std::string::npos 
-		|| mode.find("dcring")!=std::string::npos  
+		|| mode.find("dc")!=std::string::npos  
 		|| mode.find("grp")!=std::string::npos  
 		|| mode.find("pipe")!=std::string::npos )
 		return true;

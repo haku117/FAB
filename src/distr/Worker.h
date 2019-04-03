@@ -62,6 +62,8 @@ private:
 	void multicastDelta(std::vector<double>& delta);
 	void hrkycastDelta(std::vector<double>& delta);
 	void grpcastDelta();
+	void singlecastDelta(std::vector<double>& delta);
+	void dblecastDelta(std::vector<double>& delta);
 
 	void accumulateDelta(const std::vector<double>& delta);
 	void accumulateDelta(std::vector<double>& delta, const int source);
@@ -92,6 +94,9 @@ public:
 	void handleDeltaHrkycast(const std::string& data, const RPCInfo& info);
 	void handleDeltaGrpcast(const std::string& data, const RPCInfo& info);
 	void handleDeltaRPL(const std::string& data, const RPCInfo& info);
+	void handleDeltaRPLone(const std::string& data, const RPCInfo& info);
+	void handleDeltaRPLtrans(const std::string& data, const RPCInfo& info);
+	void handleDelta2c(const std::string& data, const RPCInfo& info);
 
 	void handleReply(const std::string& data, const RPCInfo& info);
 	void handleWorkerList(const std::string& data, const RPCInfo& info);
