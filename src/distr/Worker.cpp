@@ -583,12 +583,14 @@ void Worker::accumulateDelta(std::vector<double>& delta, const int source, const
 		copyDelta(bufferDelta, delta);
 		bfDeltaCnt += newcnt;
 			
-		if(bfDeltaCnt == nWorker) {
+		if(bfDeltaCnt == nWorker) {  /// for grp cast
 			deltaWaitT.push_back(tmrGlb.elapseSd());
 			// VLOG(2) << "broadcast rpl delta from " << localID;
 			for(int src : recSrcs) {
 				net->send(wm.lid2nid(src), MType::DDeltaRPL, bufferDelta);
 			}
+			if (nWorker > 3)
+				net->send(wm.lid2nid(3), MType::DDeltaRPL, bufferDelta);
 			recSrcs.clear();
 			// net->broadcast(MType::DDeltaRPL, bufferDelta);
 			deltaWaitT.push_back(tmrGlb.elapseSd());
@@ -645,8 +647,9 @@ void Worker::applyDelta(){
 		}
 		dt += std::to_string(deltaWaitT[i]) + ", ";
 	}
-	VLOG_IF(iter<5 && (localID < 9 || localID % 4 == 0), 1) << "Delta stats: " << curCalT 
-		<< "||" <<  tt_delta_wait/cnt << " [" << dt << "]";
+	// VLOG_IF(iter<5 && (localID < 9 || localID % 4 == 0), 1)
+	VLOG_IF(iter < 3, 1)
+		<< iter << " Delta stats: " << curCalT << "||" <<  tt_delta_wait/cnt << " [" << dt << "]";
 
 	/// apply delta to param
 	DVLOG(3) << "apply buffered delta : " << bufferDelta << "\nonto: " << model.getParameter().weights;
@@ -667,7 +670,7 @@ void Worker::transmitDelta(int src, int diter){
 	if(localID != 0  /// final group leader 
 		&& (curHlvl == mylvl // reach transimit lvl
 			|| bfDeltaCnt == int(pow(2, mylvl)) // required delta has already been received
-			|| localID + bfDeltaCnt > nWorker)) { // received enough delta 
+			|| localID + bfDeltaCnt >= nWorker)) { // received enough delta 
 
 		bufferDelta.push_back(diter);
 		net->send(wm.lid2nid(dstgrpID), MType::DDelta, bufferDelta);
@@ -880,11 +883,11 @@ void Worker::handleDeltaGrpcast(std::string& data, const RPCInfo & info)
 	int src = wm.nid2lid(info.source);
 	recSrcs.push_back(src);
 	auto delta = deserialize<vector<double>>(data);
-	// VLOG(2) << "w" << localID << " receive delta " << delta.size();
 
 	int diter = delta[delta.size()-1];
 	delta.pop_back();
 	// int hlvl = delta[delta.size()-1];
+	VLOG(2) << " receive delta from " << src << " at iter: " << diter << " bf: " << bfDeltaCnt;
 	int hlvl = id2lvl(src);
 	VLOG_IF(diter != iter, 1) << "----receive accu delta from " << src << " size: " << delta.size() 
 		<< " hlvl: " << hlvl << " iter: " << iter << " diter: " << diter;
@@ -908,9 +911,13 @@ void Worker::handleDeltaRPL(std::string& data, const RPCInfo & info)
 
 	int src = wm.nid2lid(info.source);
 	VLOG(2) << "receive replace delta from " << src;
-	for(int ss : recSrcs) {
-		net->send(wm.lid2nid(ss), MType::DDeltaRPL, move(data));
-	}
+	if (localID % 4==0){
+		for(int ss : recSrcs) {
+			net->send(wm.lid2nid(ss), MType::DDeltaRPL, move(data));
+		}
+		if (localID + 3 < nWorker)
+			net->send(wm.lid2nid(localID + 3), MType::DDeltaRPL, move(data));
+	} 
 	recSrcs.clear();
 
 	auto delta = deserialize<vector<double>>(data);
