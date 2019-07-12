@@ -40,8 +40,8 @@ def KMgen(file_name, k, dim, num, seed):
     cluster_num = list()
     sum_num = 0
     for i in range(k):
-        # centroids.append(one_dp(dim))
-        centroids.append(one_dp_fix((i+1) * MAX / k, dim))
+        centroids.append(one_dp(dim))
+        #centroids.append(one_dp_fix((i+1) * MAX / k, dim))
         c_num = random.randint(1, MAX)
         sum_num += c_num
         cluster_num.append(c_num)
@@ -67,7 +67,7 @@ def KMgen(file_name, k, dim, num, seed):
         ck = random.randint(0, k-1)
         if cluster_num[ck] == 0:
             continue
-        dataset.append(one_dpc(centroids[ck], MAX/50, dim))
+        dataset.append(one_dpc(centroids[ck], MAX/10, dim))
         tt_num += 1
         remain -= 1
         cluster_num[ck] -= 1
@@ -144,7 +144,7 @@ def save2file(file_name, dataset_all):
 
 if __name__ == '__main__':
     k = 5
-    dim = 20
+    dim = 50
     num = 10000
 
     print (sys.argv)

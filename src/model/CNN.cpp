@@ -53,7 +53,8 @@ int CNN::lengthParameter() const
 }
 
 std::vector<double> CNN::predict(
-	const std::vector<double>& x, const std::vector<double>& w) const
+	const std::vector<double>& x, const std::vector<double>& w, 
+	const std::vector<double>& y) const
 {
 	vector<vector<double>> input;
 	vector<vector<double>> output;

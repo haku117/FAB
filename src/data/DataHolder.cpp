@@ -121,12 +121,34 @@ void DataHolder::loadNMF(const std::string& fpath, const std::string& sepper,
 	}
 }
 
+void DataHolder::loadLDA(const std::string& fpath, const std::string& sepper)
+{
+	ifstream fin(fpath);
+	if(fin.fail()){
+		throw invalid_argument("Error in reading file: " + fpath);
+	}
+	// calculate number of x
+	size_t lid = 0; // line id;
+	string line;
+	nx = 0;
+	while(getline(fin, line)){
+		nx += 1;
+		if(line.front() == '#') // invalid line
+			continue;
+
+		if(lid++ % npart != pid) // not local line
+			continue;
+		DataPoint dp = parseLineLDA(line, sepper, appendOne);
+		data.push_back(move(dp));
+	}
+}
+
 void DataHolder::add(const std::vector<double>& x, const std::vector<double>& y){
 	nx = x.size();
 	ny = y.size();
 	DataPoint dp;
-	dp.x = x;
-	dp.y = y;
+	dp.x = move(x);
+	dp.y = move(y);
 	data.push_back(move(dp));
 }
 

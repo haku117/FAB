@@ -1,5 +1,6 @@
 #include "Parameter.h"
 #include <random>
+#include <iostream>
 using namespace std;
 
 void Parameter::init(const std::vector<double>& w)
@@ -37,6 +38,23 @@ void Parameter::init(const size_t n, std::function<double()> gen)
 	}
 }
 
+void Parameter::initLDA(const size_t ssSize, const int k, const unsigned seed)
+{
+	this->n = k;
+	int num_terms = ssSize / k - 1;
+	vector<double> ttk;
+	double r, ttsum;
+	for(size_t i = 0; i < ssSize - k; ++i){
+		r = ((double) rand() / (RAND_MAX)) + (double)1 / num_terms;
+		weights.push_back(r);
+		ttsum += r;
+		if (i % num_terms == num_terms - 1){
+			ttk.push_back(ttsum);
+		}
+	}
+	weights.insert(weights.end(), ttk.begin(), ttk.end());
+}
+
 void Parameter::set(const std::vector<double>& d)
 {
 	n = d.size();
@@ -47,6 +65,10 @@ void Parameter::set(std::vector<double>&& d)
 	n = d.size();
 	weights = std::move(d);
 }
+void Parameter::reset(const double v)
+{
+	weights.assign(weights.size(), v);
+}
 
 void Parameter::accumulate(const std::vector<double>& delta){
 	for(size_t i=0; i<n; ++i)
@@ -54,7 +76,7 @@ void Parameter::accumulate(const std::vector<double>& delta){
 }
 
 void Parameter::accumulate(const std::vector<double>& grad, const double rate){
-	for(size_t i=0; i<n; ++i)
+	for(size_t i=0; i<weights.size(); ++i)
 		weights[i] += rate*grad[i];
 }
 
@@ -69,4 +91,41 @@ bool Parameter::isSameParm(const Parameter& pp){
 			return false;
 	}
 	return true;
+}
+
+// void Parameter::accumulateLDA(const std::vector<double>& ss, int k){
+
+// 	// int K = grad.size() - n;
+// 	// int V = n / K;
+// 	// for(size_t i = 0; i < n; ++i)
+// 	// 	weights[i] = log(grad[i]) - log(grad[n/V]);
+// 	int N = ss.size() - k;
+// 	int V = ss.size() / k - 1;
+// 	for(size_t i = 0; i < N; ++i)
+// 		weights[i] = log(ss[i]) - log(ss[N + i/V]);
+// }
+
+std::vector<double> Parameter::getLDAweights(bool flag){
+
+	std::vector<double> beta;
+	int N = weights.size() - n;
+	int V = (weights.size() - n) / n;
+
+	for(size_t i = 0; i < N; ++i){
+		if (weights[i] > 0) {
+			double x = log(weights[i]) - log(weights[N + i/V]);
+			beta.push_back(x);
+		}
+		else {
+			beta.push_back(-100);
+		}
+		
+		if (i < 20 and flag) { //x != x && 
+			cout << "&&&& get LDA weights: n: " << n << " N: " << N 
+				<< " V: " << V << " i: " << i
+				<< " w[i]: " << weights[i] << " w[N+i/V]: " << weights[N + i/V]
+				<< endl;
+		}
+	}
+	return beta;
 }

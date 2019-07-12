@@ -62,6 +62,40 @@ void parseLineNMF(const std::string& line, const std::string& delimiter,
 	}
 }
 
+DataPoint parseLineLDA(const std::string& line, const std::string& delimiter, const bool appOne)
+{
+	size_t pstart = 0, pend = 0, pmid = 0;
+	int yi = 0;
+	string spc = " ";
+	vector<double> x;
+	vector<double> y;
+	string tokens;
+	try{
+		while ((pend = line.find(" ", pstart)) != std::string::npos) {
+			tokens = line.substr(pstart, pend - pstart);
+			// if (pend < 15)
+				// cout << "[t->" << tokens << "~" << pstart << "," << pend << "]";
+			if((pmid = tokens.find(":")) != std::string::npos) {
+				// if (pend < 15)
+					// cout << "{y->" << stod(tokens.substr(pmid+1)) << "}";
+				x.push_back(stod(tokens.substr(0, pmid)));
+				y.push_back(stod(tokens.substr(pmid + 1)));
+			}
+    		pstart = pend + 1;
+		}
+		tokens = line.substr(pstart);
+		if((pmid = tokens.find(":")) != std::string::npos) {
+			x.push_back(stod(tokens.substr(0, pmid)));
+			y.push_back(stod(tokens.substr(pmid + 1)));
+		}
+		// cout << "**len:" << x.size() << endl;
+
+	} catch(...){
+		cout << " Error on idx= " << pstart << " on line: " << line << endl;
+	}
+	return DataPoint{move(x), move(y)};
+}
+
 void addData(std::vector<DataPoint>& data, const int xi, const int yi, double lb){
 	vector<double> x;
 	x.push_back(xi);

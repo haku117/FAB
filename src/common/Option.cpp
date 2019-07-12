@@ -125,6 +125,8 @@ bool Option::processAlgorithm(){
 		return true;
 	} else if(algorighm.find("nmf")!=std::string::npos){
 		return true;
+	} else if(algorighm.find("lda")!=std::string::npos){
+		return true;
 	}
 	return false;
 }

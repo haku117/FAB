@@ -53,9 +53,10 @@ def KMgen(file_name, k, dim, num, seed):
 
     # save file
     for dd in dataset:
+        strDD = ""
         for i in dd:
-            file.write(str(i) + '\t')
-        file.write('\n')
+            strDD += str(i) + ','
+        file.write(strDD[:len(strDD)-1] + '\n')
 
 k = 4
 dim = 10
@@ -76,7 +77,7 @@ if num >= 1000000:
 elif num >= 1000:
     str_num = str(num / 1000) + 'k'
 
-file_name = "km-" + str(k) + "-" + str(dim) + "-" + str_num + ".csv"
+file_name = "../data/km-" + str(k) + "-" + str(dim) + "-" + str_num + ".csv"
 
 print("KMgen write to file " + file_name)
 

@@ -32,7 +32,7 @@ int Kmeans::lengthParameter() const
 /// given a data point and a parameter set
 /// compute the best assignment
 std::vector<double> Kmeans::predict(const std::vector<double>& x, 
-	const std::vector<double>& w) const 
+	const std::vector<double>& w, const std::vector<double>& y) const 
 {
 	vector<vector<double> > centroids;
 	vector<int> counts;

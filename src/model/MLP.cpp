@@ -32,7 +32,8 @@ int MLP::lengthParameter() const
 }
 
 std::vector<double> MLP::predict(
-	const std::vector<double>& x, const std::vector<double>& w) const
+	const std::vector<double>& x, const std::vector<double>& w,
+	const std::vector<double>& y) const
 {
 	proxy.bind(&w);
 	vector<double> mid = activateLayer(x, w, 0);

@@ -57,14 +57,17 @@ int main(int argc, char* argv[]){
 		try{
 			if(opt.algorighm.find("nmf") !=std::string::npos) 
 				dh.loadNMF(opt.fnData, ",", opt.algParam, opt.header, true);
+			else if(opt.algorighm.find("lda") !=std::string::npos) 
+				dh.loadLDA(opt.fnData, ",");
 			else
 				dh.load(opt.fnData, ",", opt.idSkip, opt.idY, opt.header, true);
 			DVLOG(2) << "data[0]: " << dh.get(0).x << " -> " << dh.get(0).y;
 			// if(dh.size() > 6)
 			// 	DVLOG(2) << "data[6]: " << dh.get(6).x << " -> " << dh.get(6).y;
-			if(opt.doNormalize)
+			if(opt.doNormalize){
 				dh.normalize(false);
-			DVLOG(2) << "data[0]: " << dh.get(0).x << " -> " << dh.get(0).y;
+				DVLOG(2) << "data[0]: " << dh.get(0).x << " -> " << dh.get(0).y;
+			}
 			w.bindDataset(&dh);
 			w.run();
 		} catch(exception& e){

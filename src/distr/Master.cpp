@@ -33,7 +33,8 @@ void Master::init(const Option* opt, const size_t lid)
 {
 	this->opt = opt;
 	nWorker = opt->nw;
-	if (opt->algorighm == "km") {
+	if (opt->algorighm == "km" || opt->algorighm == "nmf"
+		 || opt->algorighm == "lda") {
 		trainer = new EM;
 	}else {
 		trainer = new GD;
@@ -137,6 +138,7 @@ void Master::dcInit()
 void Master::dcProcess()
 {
 	double tl = tmrTrain.elapseSd();
+	size_t arcIter = 0;
 	while(!terminateCheck()){
 		if(VLOG_IS_ON(2) && iter % 100 == 0){
 			double t = tmrTrain.elapseSd();
@@ -149,10 +151,13 @@ void Master::dcProcess()
 		// VLOG(2) << "Master received new param";
 
 		VLOG_EVERY_N(ln, 3) << "  DC: receive new parameters";
-		archiveProgress();
+		if(archiveProgress())
+			arcIter = iter;
 		//waitParameterConfirmed();
 		++iter;
 	}
+	if (iter > arcIter + 2)
+		archiveProgress(true);
 }
 
 void Master::syncInit()
@@ -164,6 +169,11 @@ void Master::syncInit()
 void Master::syncProcess()
 {
 	double tl = tmrTrain.elapseSd();
+	if (opt->algorighm == "lda") {
+		int prev = model.paramWidth();
+		model.resetparam();
+		VLOG(1) << "reinit param from: " << prev << " to: " << model.paramWidth();
+	}
 	while(!terminateCheck()){
 		if(VLOG_IS_ON(2) && iter % 100 == 0){
 			double t = tmrTrain.elapseSd();
@@ -191,6 +201,8 @@ void Master::asyncProcess()
 {
 	bool newIter = true;
 	double tl = tmrTrain.elapseSd();
+	if (opt->algorighm == "lda")
+		model.resetparam();
 	while(!terminateCheck()){
 		if(newIter){
 			VLOG_EVERY_N(ln, 1) << "Start iteration: " << iter;
@@ -310,8 +322,11 @@ void Master::bindDataset(const DataHolder* pdh)
 
 void Master::applyDelta(std::vector<double>& delta, const int source)
 {
-	DVLOG(3) << "apply delta from " << source << " : " << delta
-		<< "\nonto: " << model.getParameter().weights;
+	DVLOG(3) << "apply delta from " << source << " : " << delta.size() << "; " << delta
+		<< "\nonto: " << model.getParameter().size() << "; " << model.getParameter().weights;
+	// if (opt->algorighm == "lda"){
+	// 	model.accumulateParameterLDA(delta, stoi(opt->algParam) );
+	// }
 	model.accumulateParameter(delta, factorDelta);
 }
 
@@ -327,25 +342,40 @@ void Master::initializeParameter()
 	suXLength.wait();
 	suXLength.reset();
 	if(opt->algorighm == "km") {
-		model.init(opt->algorighm, nx, opt->algParam, candiParam);
+		vector<double> param = candiParam[0];
+		for (int i = 1; i < candiParam.size(); i++) {
+			param.insert(param.end(), candiParam[i].begin(), candiParam[i].end());
+		}
+		model.init(opt->algorighm, nx, opt->algParam, param);
 	}else if(opt->algorighm.find("nmf") !=std::string::npos) {
 		model.init(opt->algorighm, nx, opt->algParam, unsigned(1)); // seed 1??
-	}
-	else
+	}else if(opt->algorighm.find("lda") !=std::string::npos) {
+		model.init(opt->algorighm, 10434, opt->algParam, unsigned(1)); // seed 1??
+	}else
 		model.init(opt->algorighm, nx, opt->algParam, 0.01);
 }
 
 void Master::sendParameter(const int target)
 {
 	DVLOG(3) << "send parameter to " << target << " with: " << model.getParameter().weights;
-	net->send(wm.lid2nid(target), MType::DParameter, model.getParameter().weights);
+	if (opt->algorighm == "lda"){
+		net->send(wm.lid2nid(target), MType::DParameter, model.getParameter().getLDAweights());
+	} else
+		net->send(wm.lid2nid(target), MType::DParameter, model.getParameter().weights);
 	++stat.n_par_send;
 }
 
 void Master::broadcastParameter()
-{
-	DVLOG(3) << "broad parameter: " << model.getParameter().weights;
-	net->broadcast(MType::DParameter, model.getParameter().weights);
+{	
+	DVLOG(3) << "broad parameter: " << model.getParameter().size();
+	if (opt->algorighm == "lda"){
+		std::vector<double> np = model.getParameter().getLDAweights();
+		DVLOG(3) << np.size() << " ; " << np;
+		net->broadcast(MType::DParameter, np);
+	} else {
+		DVLOG(3) << model.getParameter().weights;
+		net->broadcast(MType::DParameter, model.getParameter().weights);
+	}
 	stat.n_par_send += nWorker;
 }
 
@@ -359,9 +389,10 @@ bool Master::needArchive()
 {
 	if(!foutput.is_open())
 		return false;
-	if(opt->algorighm == "km" || opt->algorighm.find("nmf") !=std::string::npos) {
+	if(opt->algorighm == "km" || opt->algorighm.find("nmf") !=std::string::npos
+		|| opt->algorighm.find("lda") !=std::string::npos) {
 		if(iter < 8 || iter == 10 || iter == 14 || iter == 19
-			|| iter - lastArchIter >= lastArchIter / 2
+			|| iter >= lastArchIter * 3 / 2
 			|| tmrArch.elapseSd() >= opt->arvTime)
 		{
 			lastArchIter = iter;
@@ -379,15 +410,25 @@ bool Master::needArchive()
 	return false;
 }
 
-void Master::archiveProgress(const bool force)
+bool Master::archiveProgress(const bool force)
 {
 	if(!force && !needArchive())
-		return;
+		return false;
 	foutput << iter << "," << tmrTrain.elapseSd();
-	for(auto& v : model.getParameter().weights){
-		foutput << "," << v;
+	if (opt->algorighm.find("lda") !=std::string::npos){
+		// VLOG(2) << "------ archive LDA beta";
+		vector<double> beta = model.getParameter().getLDAweights();
+		for(auto& v : beta){
+			foutput << "," << v;
+		}
+	} else {
+		// VLOG(2) << "------ archive param";
+		for(auto& v : model.getParameter().weights){
+			foutput << "," << v;
+		}
 	}
 	foutput <<"\n";
+	return true;
 }
 
 void Master::broadcastWorkerList()
@@ -473,6 +514,7 @@ void Master::handleXLength(const std::string& data, const RPCInfo& info){
 			stat.t_data_deserial += tmr.elapseSd();
 			int k = stoi(opt->algParam);
 			int numK = centroids.back();
+			if(numK == 0) return;
 			centroids.pop_back();
 			if(nx == 0){
 				nx = centroids.size()/numK;
@@ -480,17 +522,23 @@ void Master::handleXLength(const std::string& data, const RPCInfo& info){
 				LOG(FATAL)<<"dataset on "<<source<<" does not match with others: "<<
 					nx << " " << numK << " " << centroids.size()/k;
 			}
-			if (candiParam.empty() || (source == 0 && !candiParam.empty() && k == numK)) {
-				candiParam = move(centroids);
-			} else if (candiParam.size() < k * nx){
-				int remain = k - candiParam.size()/nx;
-				if(remain >= numK){
-					candiParam.insert(candiParam.end(), centroids.begin(), centroids.end());
-				} else{
-					candiParam.insert(candiParam.end(), centroids.begin(),
-						centroids.begin() + remain*nx);
-				}
+			if (candiParam.empty()){
+				candiParam.assign(nWorker, vector<double>());
 			}
+			candiParam[source] = centroids;
+			// VLOG(2) << "s: " << source << ": " << candiParam[source];
+
+			// if (candiParam.empty() || (source == 0 && !candiParam.empty() && k == numK)) {
+			// 	candiParam = move(centroids);
+			// } else if (candiParam.size() < k * nx){
+			// 	int remain = k - candiParam.size()/nx;
+			// 	if(remain >= numK){
+			// 		candiParam.insert(candiParam.end(), centroids.begin(), centroids.end());
+			// 	} else{
+			// 		candiParam.insert(candiParam.end(), centroids.begin(),
+			// 			centroids.begin() + remain*nx);
+			// 	}
+			// }
 		// }
 	} 
 	else {

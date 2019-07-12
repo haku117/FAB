@@ -80,3 +80,8 @@ std::pair<size_t, std::vector<double>> GD::batchDelta(
 	VLOG(2) << " unit dp cal time for " << counter << " : " << tmr.elapseSd()/counter;
 	return make_pair(i - start, move(grad));
 }
+
+// void GD::initState (int dim){
+// 	DLOG(INFO) << "Trainer init State GD ??";
+// 	return;
+// }

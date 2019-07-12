@@ -7,7 +7,7 @@ using namespace std;
 
 void NMF::init(const int xlength, const std::string & param)
 {
-	double lambda = 0.01; //// default lambda
+	lambda = 0.01; //// default lambda
 	size_t pos = 0;
 	std::vector<int> tokens = parseParam(param);
 	nnx = tokens[1];
@@ -32,7 +32,7 @@ int NMF::lengthParameter() const
 /// compute the predicted value at that position 
 /// may not need to use??
 std::vector<double> NMF::predict(const std::vector<double>& x, 
-	const std::vector<double>& w) const 
+	const std::vector<double>& w, const std::vector<double>& y) const 
 {
 	int xi = int(x[0]);
 	int yi = int(x[1]);

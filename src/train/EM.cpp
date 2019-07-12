@@ -12,7 +12,7 @@ EM::EM()
 }
 
 /// initialize the local state Z
-void EM::initState(int dim, int rank){
+void EM::initState(int dim){
 	if(dim > 0) {
 		int xlen = pd->size();
 		// int dim = 1;//this.pm->getKernel()->lengthState();
@@ -71,9 +71,9 @@ std::pair<size_t, std::vector<double>> EM::batchDelta(
 {
 	size_t end = start + cnt;
 
+	size_t nx = pm->paramWidth();
 	// Timer tmr;
 	if(this->pm->kernelName() == "nmf") {
-		size_t nx = pm->paramWidth();
 		vector<double> delta(nx, 0.0);
 		// std::vector<double> delta; //for accumuteDeltaSave version
 		size_t dp; // data point index
@@ -93,14 +93,17 @@ std::pair<size_t, std::vector<double>> EM::batchDelta(
 		return make_pair(dp - start, move(delta));
 	}
 
-	size_t nx = pm->paramWidth();
-	vector<double> delta(nx, 0.0);
+	vector<double> delta;
 	size_t dp; // data point index
+	VLOG(3) << "param ss size:" << nx << " data size: " << pd[0].size();
+	VLOG(3) << "z size:" << z.size() << " z0: " << z[0];
 	for(dp = start; dp < end && (cond.load() || dp == start); ++dp){
 
 		size_t i = dp % pd->size(); 	// round the data set
 		auto g = pm->gradient(pd->get(i), &(z[i]));
-		for(size_t j = 0; j < nx; ++j)
+		if (delta.size() == 0)
+			delta.assign(g.size(), 0.0);
+		for(size_t j = 0; j < g.size(); ++j)
 			delta[j] += g[j];
 	}
 
@@ -170,4 +173,8 @@ std::pair<size_t, std::vector<double>> EM::batchDeltaPipe(std::atomic<bool>& con
 // 	if(indxHi != -1) {
 // 		delta.insert(delta.end(), d.begin()+rank+1, d.end());
 // 	}
+// }
+
+// void EM::updateLocalZ(std::vector<double> zz){
+
 // }

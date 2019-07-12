@@ -26,7 +26,8 @@ int LogisticRegression::lengthParameter() const
 }
 
 std::vector<double> LogisticRegression::predict(
-	const std::vector<double>& x, const std::vector<double>& w) const 
+	const std::vector<double>& x, const std::vector<double>& w,
+	const std::vector<double>& y) const 
 {
 	double t = w.back();
 	for (int i = 0; i < xlength; ++i) {

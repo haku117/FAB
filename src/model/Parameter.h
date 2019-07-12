@@ -15,14 +15,21 @@ public:
 	void init(const size_t n, const double mu, const double sigma2, const unsigned seed = 0);
 	// initialize with a value generator
 	void init(const size_t n, std::function<double()> gen);
+	
+	void initLDA(const size_t n, const int k, const unsigned seed);
 
 	void set(const std::vector<double>& d);
 	void set(std::vector<double>&& d);
+	void reset(const double v);
 	std::vector<double> getWeights() const { return weights; }
+
+	std::vector<double> getLDAweights(bool flag = false);
 	size_t size() const { return weights.size(); }
 
 	bool isSameParm(const Parameter& pp);
 	
 	void accumulate(const std::vector<double>& delta);
 	void accumulate(const std::vector<double>& grad, const double rate);
+
+	// void accumulateLDA(const std::vector<double>& ss, int k);
 };

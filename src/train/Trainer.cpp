@@ -54,7 +54,13 @@ void Trainer::applyDelta(const vector<double>& delta, const double factor)
 	pm->accumulateParameter(delta, factor);
 }
 
+
 void Trainer::initState (int dim){
-	// DLOG(INFO) << "Trainer init State ??";
+	DLOG(INFO) << "Trainer init State ??";
 	return;
 }
+
+// void Trainer::updateLocalZ(std::vector<double> zz){
+// 	DLOG(INFO) << "====== default update local ZZ trainer ??";
+// 	return;
+// }

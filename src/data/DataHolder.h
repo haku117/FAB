@@ -29,6 +29,8 @@ public:
 		const std::string& param,
 		const bool header, const bool onlyLocalPart = false);
 
+	void loadLDA(const std::string& fpath, const std::string& sepper);
+
 	void add(const std::vector<double>& x, const std::vector<double>& y);
 	void add(std::vector<double>&& x, std::vector<double>&& y);
 

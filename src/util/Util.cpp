@@ -174,3 +174,45 @@ int str2int(const std::string& token){
 	}
 	return stoi(token);
 }
+
+/*
+ * taylor approximation of first derivative of the log gamma function
+ *
+ */
+double digamma(double x){
+    double p;
+    x=x+6;
+    p=1/(x*x);
+    p=(((0.004166666666667*p-0.003968253986254)*p+
+			0.008333333333333)*p-0.083333333333333)*p;
+    p=p+log(x)-0.5/x-1/(x-1)-1/(x-2)-1/(x-3)-1/(x-4)-1/(x-5)-1/(x-6);
+    return p;
+}
+
+/*
+ * given log(a) and log(b), return log(a + b)
+ *
+ */
+
+double log_sum(double log_a, double log_b){
+	double v;
+
+	if (log_a < log_b){
+		v = log_b+log(1 + exp(log_a-log_b));
+	}
+	else{
+		v = log_a+log(1 + exp(log_b-log_a));
+	}
+	return(v);
+}
+
+std::vector<double> ss2param(const std::vector<double>& ss, int k){
+	// ss = V*k + k
+	std::vector<double> weights;
+	int N = ss.size() - k;
+	int V =  (ss.size() - k) / k;
+	for(size_t i = 0; i < N; ++i)
+		weights.push_back(log(ss[i]) - log(ss[N + i/V]));
+
+	return weights;
+}

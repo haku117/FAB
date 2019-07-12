@@ -4,6 +4,7 @@
 #include "util/Timer.h"
 #include <atomic>
 #include <vector>
+#include <list>
 #include <mutex>
 
 class Worker : public Runner{
@@ -137,8 +138,11 @@ private:
 	size_t mylvl;
 	size_t dstgrpID;
 
+	size_t interval;
+
 	int blkNum, nny; // block size for pipeline running
 	int stale; // record the current iter for updated param
+	int staleness; // max staleness allowed to update param
 	std::vector<int> blkPointer; // block start and index??
 	std::vector<int> blkSize; // block start and index??
 	std::vector<int> blkDeltaBFCnt; // count the delta buffered at each blk
@@ -168,6 +172,7 @@ private:
 	//std::mutex mModel; // whether the model is in use
 
 	std::vector<double> bfDelta; // dcsync need to delete
+	std::list< std::vector<double> > staleDelta; // dcsync need to delete
 
 	//std::mutex mTrain;
 	std::atomic<bool> allowTrain;

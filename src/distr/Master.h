@@ -40,7 +40,7 @@ private:
 	void broadcastParameter();
 	void waitParameterConfirmed();
 	bool needArchive();
-	void archiveProgress(const bool force = false);
+	bool archiveProgress(const bool force = false);
 
 // signal logic
 public:
@@ -73,7 +73,8 @@ public:
 private:
 	Parameter param;
 	std::vector<double> bfDelta;
-	std::vector<double> candiParam;
+	// std::vector<double> candiParam;
+	std::vector< std::vector<double> > candiParam;
 
 	IDMapper wm; // worker id mapper
 	double factorDelta;

@@ -4,6 +4,7 @@
 #include "CNN.h"
 #include "Kmeans.h"
 #include "NMF.h"
+#include "LDA.h"
 #include <stdexcept>
 using namespace std;
 
@@ -18,6 +19,8 @@ Kernel* KernelFactory::generate(const std::string& name){
 		return new Kmeans();
 	else if(name.find("nmf") !=std::string::npos)
 		return new NMF();
+	else if(name.find("lda") !=std::string::npos)
+		return new LDA();
 	else
 		throw invalid_argument("do not support the method: " + name);
 	return nullptr;

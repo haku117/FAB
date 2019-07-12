@@ -19,5 +19,7 @@ public:
 	virtual std::pair<size_t, std::vector<double>> batchDeltaPipe(std::atomic<bool>& cond, 
 		const size_t start, const size_t cnt, const size_t blk, const std::vector<int> blkSize, 
 		const bool avg = true) {};
+
+	// virtual void initState(int dim = 0);
 };
 

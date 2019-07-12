@@ -17,3 +17,8 @@ size_t stoulKMG(const std::string & str, const bool binary = false);
 void accumuteDeltaSave(std::vector<double>& delta, std::vector<double>& d);
 std::vector<int> parseParam(const std::string& param);
 int str2int(const std::string& token);
+
+// for LDA
+double digamma(double x);
+double log_sum(double log_a, double log_b);
+std::vector<double> ss2param(const std::vector<double>& ss, int k);

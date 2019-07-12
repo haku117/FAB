@@ -151,6 +151,8 @@ int main(int argc, char* argv[]){
 	DataHolder dh(false, 1, 0);
 	if(opt.alg.find("nmf") !=std::string::npos)
 		dh.loadNMF(opt.fnData, ",", opt.algParam, false, true);
+	else if(opt.alg.find("lda") !=std::string::npos)
+		dh.loadLDA(opt.fnData, ",");
 	else
 		dh.load(opt.fnData, ",", opt.idSkip, opt.idY, false, true);
 
@@ -168,7 +170,7 @@ int main(int argc, char* argv[]){
 
 	Parameter param;
 	Trainer* trainer;
-	if (opt.alg == "km" || opt.alg == "nmf") {
+	if (opt.alg == "km" || opt.alg == "nmf" || opt.alg == "lda") {
 		trainer = new EM;
 	}else {
 		trainer = new GD;
@@ -194,12 +196,13 @@ int main(int argc, char* argv[]){
 		// if(opt.show)
 		// 	cout << "time size: " << p.first.size() << "\tparam size: " << p.second.size() << endl;
 		double diff = 0.0;
-		if(withRef)
-			diff = vectorDifference(ref, p.second);
-		if(last.empty()){
-			last = vector<double>(p.second.size(), 0.0);
-		}
-		double impro = vectorDifference(last, p.second);
+		// if(withRef)
+		// 	diff = vectorDifference(ref, p.second);
+		// if(last.empty()){
+		// 	last = vector<double>(p.second.size(), 0.0);
+		// }
+		// double impro = vectorDifference(last, p.second);
+		
 		// if(opt.show)
 		// 	cout << "improv " << impro << endl;
 		
@@ -208,9 +211,11 @@ int main(int argc, char* argv[]){
 		m.setParameter(move(param));
 
 		double loss = lastLoss;
-		if (impro > 0.0001)
+		// if (impro > 0.0001) {
 			loss = trainer->loss();
+		double impro = loss - lastLoss;
 			lastLoss = loss;
+		// }
 
 		if(opt.show)
 			cout << p.first[1] << "\t" << loss << "\t" << impro << "\t" << p.first[0] << endl;

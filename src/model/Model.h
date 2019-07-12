@@ -28,6 +28,8 @@ public:
 
 	void setParameter(const Parameter& p);
 	void setParameter(Parameter&& p);
+	void resetparam();
+	
 	Parameter& getParameter();
 	const Parameter& getParameter() const;
 	size_t paramWidth() const;
@@ -36,13 +38,17 @@ public:
 
 	void accumulateParameter(const std::vector<double>& grad, const double factor);
 	void accumulateParameter(const std::vector<double>& grad);
+	void accumulateParameterLDA(const std::vector<double>& grad, int k);
 	
 	std::vector<double> predict(const DataPoint& dp) const;
 	int classify(const double p) const;
 	double loss(const DataPoint& dp) const;
 	double loss(const std::vector<double>& pred, const std::vector<double>& label) const;
 	// std::vector<double> gradient(const DataPoint& dp) const;
-	std::vector<double> gradient(const DataPoint& dp, std::vector<int>* z = nullptr) const;
+	std::vector<double> gradient(const DataPoint& dp, std::vector<int>* z = nullptr);
+
+	void updateLocalZ(std::vector<double>& zz);
+	std::vector<double> computeDelta(std::vector<double>& zz);
 
 private:
 	void generateKernel(const std::string& name);

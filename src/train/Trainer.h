@@ -46,5 +46,6 @@ public:
 	virtual double getRate() const =0;
 
 	virtual void initState(int dim = 0); /// initialize local state Z for EM
+	// void updateLocalZ(std::vector<double> zz);
 };
 

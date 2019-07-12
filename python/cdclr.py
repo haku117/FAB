@@ -70,13 +70,15 @@ def drawCmp(mode1, mode2, nw, n=200):
 
 def drawList(prefix, mList, w, bs, n=200):
     plt.figure();
+    startpoint = 0
+    postfix = '000,-0.00005/dcfsb-6-1000.txt'
     for m in mList:
-        d=pandas.read_csv(prefix+m+'.txt',skiprows=0, header=None)
-        plt.plot(d[:n][0], d[:n][1])
+        d=pandas.read_csv(prefix+m+postfix,skiprows=0, header=None)
+        plt.plot(d[startpoint:n][0], d[startpoint:n][1])
     #plt.hold(True)
     plt.legend(mList)
     plt.show()
-    plt.savefig('/home/gzhao/mnil/boxCOM/figure/fsb-bs'+ bs +'k-r01-w'+ w +'.pdf')
+    plt.savefig('/home/gzhao/mnil/fig/nmf-1k-10k-'+ bs +'k-r5E-4-w'+ w +'.pdf')
 
 print('input para:',sys.argv)
 if len(sys.argv)>2:
@@ -88,6 +90,13 @@ if len(sys.argv)>2:
 #drawList('../score/10-1m/'+ '20000-0.01/',['dcfsb-2','dcfsb-4','dcfsb-8','dcfsb-16'],'20','x')
 #drawList('../score/10-1m/'+ bs + '000-0.01/',['fsb-'+w,'dcfsb-'+w, 'async-'+w], w, bs)
 #drawList('10000-0.1/',['sync-4','fsb-4','async-4','fab-4'])
+#drawList('../score/5-100k/5000-1/',['async-9-5','async-5-5','dcfsb-9-5','dcfsb-5-5'], 'x', '5', 10)
+#drawList('../score/50-20k/',['50-1/dcfsb-6-10','100-1/dcfsb-6-10','200-1/dcfsb-6-10',\
+#    '500-1/dcfsb-6-10','1000-1/dcfsb-6-10','2000-1/dcfsb-6-10','10000-1/dcfsb-6-10'], 'x', 'x', 15)
+#drawList('../score/50-20k/',['100-1/dcfsb-6-10','100-1/async-6-10'], 'x', '01', 30)
+#drawList('../score/50-20k/3000-1/',['dcfsb-6-5','dcfsb-6-10','dcfsb-6-20','dcfsb-6-50',\
+#    'dcfsb-6-100','dcfsb-6-200','dcfsb-6-400','dcfsb-6-800'], '6', '3', 30)
+#drawList('../score/1000-10k/',['2','5','10','12','15'], '6', 'x')
 
 def drawListCmp(prefix, mList1, mList2, bs, n=200):
     assert(len(mList1) == len(mList2))
@@ -95,15 +104,15 @@ def drawListCmp(prefix, mList1, mList2, bs, n=200):
     l=len(mList1)
     lgd=[]
     for i in range(l):
-        print(os.stat(prefix+mList1[i]+'.txt').st_size)
-        if os.stat(prefix+mList1[i]+'.txt').st_size > 0:
-            d1=pandas.read_csv(prefix+mList1[i]+'.txt',skiprows=0, header=None)
+        print(os.stat(prefix+mList1[i]+'-1000.txt').st_size)
+        if os.stat(prefix+mList1[i]+'-1000.txt').st_size > 0:
+            d1=pandas.read_csv(prefix+mList1[i]+'-1000.txt',skiprows=0, header=None)
             #print(d1)
             plt.plot(d1[:n][0], d1[:n][1])
             lgd.append(mList1[i])
-        print( os.stat(prefix+mList2[i]+'.txt').st_size)
-        if os.stat(prefix+mList2[i]+'.txt').st_size > 0:
-            d2=pandas.read_csv(prefix+mList2[i]+'.txt',skiprows=0, header=None)
+        print( os.stat(prefix+mList2[i]+'-1000.txt').st_size)
+        if os.stat(prefix+mList2[i]+'-1000.txt').st_size > 0:
+            d2=pandas.read_csv(prefix+mList2[i]+'-1000.txt',skiprows=0, header=None)
             #print(d2)
             plt.plot(d2[:n][0], d2[:n][1], '--')
             lgd.append(mList2[i])
@@ -111,15 +120,16 @@ def drawListCmp(prefix, mList1, mList2, bs, n=200):
     plt.legend(lgd)
     plt.xlabel('time (s)')
     plt.ylabel('objective function value')
-    plt.title('MLP Convergence speed comparison with batch size '+bs+'k' )
+    plt.title('NMF Convergence speed comparison with batch size '+bs+'k' )
     #plt.savefig(prefix.replace('-100k/','-').replace('/','')+'.png')
-    plt.savefig('/home/gzhao/mnil/boxCOM/figure/mlp-bs'+ bs +'k-r01-wxx.pdf')
+    plt.savefig('/home/gzhao/mnil/fig/nmf-bs'+ bs +'k-r5-wx.pdf')
     plt.show()
 
 #drawListCmp('../score/10-1m/'+ bs + '000-0.01/',['fsb-2','fsb-4','fsb-8'],['dcfsb-2','dcfsb-4','dcfsb-8'], bs)
-drawListCmp('../score/10,15,1-100k/'+ bs + '000-0.01/',['fsb-2','fsb-4','fsb-8','fsb-16'],['dcfsb-2','dcfsb-4','dcfsb-8','dcfsb-16'], bs)
+#drawListCmp('../score/10,15,1-100k/'+ bs + '000-0.01/',['fsb-2','fsb-4','fsb-8','fsb-16'],['dcfsb-2','dcfsb-4','dcfsb-8','dcfsb-16'], bs)
 #drawListCmp('../10000-0.1/',['async-1','async-2','async-4'],['fab-1','fab-2','fab-4'])
 #drawListCmp('10,15,1-100k/1000-0.1/',['async-1','async-2','async-4', 'async-8'],['fab-1','fab-2','fab-4','fab-8'])
+drawListCmp('../score/1000-10k/20000-0.00005/',['dcfsb-6','dcfsb-9','dcfsb-16'],['dcring-6','dcring-9','dcring-16'], '20')
 
 # returnn time and score, each file holds a ROW
 def getRecord(prefix, mList, asMatrix=False):

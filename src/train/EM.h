@@ -16,7 +16,8 @@ public:
 	// void setZ(std::vector<std::vector<int> > z);
 	// std::vector<std::vector<int> > getZ() const;
 
-	void initState(int dim, int nnx = 0);
+	virtual void initState(int dim);
+	// virtual void initState(int dim, int nnx = 0);
 
 	virtual std::vector<double> batchDelta(
 		const size_t start, const size_t cnt, const bool avg = true);
@@ -28,5 +29,7 @@ public:
 		const size_t start, const size_t cnt, const size_t blk, const std::vector<int> blkSize, 
 		const bool avg = true);
 	// void EM::accumuteDeltaSave(std::vector<double>& delta, std::vector<double>& d);
+
+	// void updateLocalZ(std::vector<double> zz);
 };
 

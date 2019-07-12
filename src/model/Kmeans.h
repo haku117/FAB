@@ -14,7 +14,8 @@ public:
 	bool dataNeedConstant() const;
 	int lengthParameter() const;
 
-	std::vector<double> predict(const std::vector<double>& x, const std::vector<double>& w) const;
+	std::vector<double> predict(const std::vector<double>& x, const std::vector<double>& w,
+		const std::vector<double>& y = std::vector<double>()) const;
 	int classify(const double p) const;
 
 	double loss(const std::vector<double>& pred, const std::vector<double>& label) const;
