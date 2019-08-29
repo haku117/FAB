@@ -22,14 +22,14 @@ public:
 	// throw exceptions if something wrong
 	void load(const std::string& fpath, const std::string& sepper,
 		const std::vector<int> skips, const std::vector<int>& yIds,
-		const bool header, const bool onlyLocalPart = false);
+		const bool header, const bool onlyLocalPart = false, const int pp = 1);
 
 	void loadNMF(const std::string& fpath, const std::string& sepper,
 		// const std::vector<int> skips, const std::vector<int>& yIds,
 		const std::string& param,
 		const bool header, const bool onlyLocalPart = false);
 
-	void loadLDA(const std::string& fpath, const std::string& sepper);
+	void loadLDA(const std::string& fpath, const std::string& sepper, const int pp = 1);
 
 	void add(const std::vector<double>& x, const std::vector<double>& y);
 	void add(std::vector<double>&& x, std::vector<double>&& y);

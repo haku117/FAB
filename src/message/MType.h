@@ -19,10 +19,13 @@ struct MType {
 	static constexpr int DDelta = 15;
 	static constexpr int DRDelta = 16;
 	static constexpr int DDeltaRPL = 17;
+	static constexpr int DReport = 18;
+	static constexpr int DDeltaReq = 19;
 
 	// Working Control
 	static constexpr int CTrainPause = 20;
 	static constexpr int CTrainContinue = 21;
+	static constexpr int CTrainInterval = 22;
 
 	// Process and Progress (Termination)
 	static constexpr int PApply = 40;

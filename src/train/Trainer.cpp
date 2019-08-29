@@ -1,5 +1,7 @@
 #include "Trainer.h"
 #include "logging/logging.h"
+#include <chrono>
+#include <thread>
 // #include <iostream>
 using namespace std;
 
@@ -58,6 +60,11 @@ void Trainer::applyDelta(const vector<double>& delta, const double factor)
 void Trainer::initState (int dim){
 	DLOG(INFO) << "Trainer init State ??";
 	return;
+}
+
+void Trainer::sleep(double seconds) {
+		static auto d = chrono::duration<double>(seconds);
+		this_thread::sleep_for(d);
 }
 
 // void Trainer::updateLocalZ(std::vector<double> zz){

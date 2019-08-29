@@ -76,10 +76,12 @@ private:
 			if(ch >= 'A' && ch <= 'Z')
 				ch += 'a' - 'A';
 		}
+		// cout << "gen algorithm " << algorithm;
 		if(algorithm == "lr"){
 			return true;
 		} else if(algorithm == "mlp"){
-			vector<int> shape = getIntList(param, " ,-");
+			vector<int> shape = getIntList(param, "_");
+			cout << "mlp shape: " << shape.size() << "," << shape.front() << "," << shape.back() << endl;
 			return shape.size() >= 2 && shape.front() == xlength && shape.back() == ylength;
 		} else if(algorithm == "cnn"){
 			vector<string> shape = getStringList(param, "-");

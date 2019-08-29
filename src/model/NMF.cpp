@@ -72,7 +72,7 @@ double NMF::loss(
 }
 
 std::vector<double> NMF::gradient(const std::vector<double>& x, const std::vector<double>& w, 
-		const std::vector<double>& y, std::vector<int>* z) const
+		const std::vector<double>& y, std::vector<double>* z) const
 {
 	// double err = y[0] - predict(x, w)[0];
 	int xi = int(x[0]);

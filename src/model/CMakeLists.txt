@@ -11,6 +11,7 @@ set(HEADERS
 	Kmeans.h
 	NMF.h
 	LDA.h
+	GMM.h
 )
 set(SOURCES
 	Kernel.cpp
@@ -25,6 +26,7 @@ set(SOURCES
 	Kmeans.cpp
 	NMF.cpp
 	LDA.cpp
+	GMM.cpp
 )
 add_library(model
 	${HEADERS} ${SOURCES})

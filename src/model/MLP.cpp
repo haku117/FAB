@@ -3,6 +3,7 @@
 #include "util/Util.h"
 #include <cmath>
 #include <stdexcept>
+#include <iostream>
 using namespace std;
 
 // -------- MLP --------
@@ -10,7 +11,9 @@ using namespace std;
 void MLP::init(const int xlength, const std::string & param)
 {
 	initBasic(xlength, param);
-	nNodeLayer = getIntList(param, " ,-");
+	nNodeLayer = getIntList(param, "_");
+	cout << "mlp layer: " << nNodeLayer.size() << "," << nNodeLayer[0] << "," << nNodeLayer[1]
+			<< ", xlength: " << xlength << endl;
 	if(nNodeLayer.empty() || xlength != nNodeLayer[0])
 		throw invalid_argument("MLP parameter not valid or does not match dataset");
 	// set n
@@ -61,7 +64,7 @@ double MLP::loss(const std::vector<double>& pred, const std::vector<double>& lab
 }
 
 std::vector<double> MLP::gradient(const std::vector<double>& x, const std::vector<double>& w, 
-		const std::vector<double>& y, std::vector<int>* z) const
+		const std::vector<double>& y, std::vector<double>* z) const
 {
 	proxy.bind(&w);
 	// forward

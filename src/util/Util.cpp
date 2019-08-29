@@ -216,3 +216,18 @@ std::vector<double> ss2param(const std::vector<double>& ss, int k){
 
 	return weights;
 }
+
+double l2norm0(const std::vector<double>& dd) {
+	double dist = 0;
+	for (int i = 0; i < dd.size(); i++){
+		dist += dd[i] * dd[i];
+	}
+	return dist;
+}
+double l1norm0(const std::vector<double>& dd) {
+	double dist = 0;
+	for (int i = 0; i < dd.size(); i++){
+		dist += abs(dd[i]);
+	}
+	return dist;
+}

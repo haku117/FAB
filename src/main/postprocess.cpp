@@ -26,6 +26,7 @@ double vectorDifference(const vector<double>& a, const vector<double>& b){
 struct Option {
 	string alg;
 	string algParam;
+	string batchSize;
 	string fnRecord;
 	string fnData;
 	vector<int> idSkip;
@@ -43,6 +44,7 @@ struct Option {
 		try{
 			alg = argv[idx++];
 			algParam = argv[idx++];
+			batchSize = argv[idx++];
 			fnRecord = argv[idx++];
 			fnData = argv[idx++];
 			idSkip = getIntList(argv[idx++]);
@@ -67,7 +69,7 @@ struct Option {
 		return true;
 	}
 	void usage(){
-		cout << "usage: <alg> <alg-param> <fn-record> <fn-data> <id-skip> <id-y> [fn-param]"
+		cout << "usage: <alg> <alg-param> <batch-size> <fn-record> <fn-data> <id-skip> <id-y> [fn-param]"
 			" [fn-output] [normalize=true] [show=false]" << endl
 			<< "  <fn-record> and <fn-data> are required.\n"
 			<< "  [fn-param] and [fn-output] can be omitted or given as '-'\n"
@@ -147,17 +149,21 @@ int main(int argc, char* argv[]){
 		return 2;
 	}
 	const bool write = !opt.fnOutput.empty();
+	int pp = 1;
+	if (opt.alg == "km") pp = 17;
+	else if (opt.alg == "lr") pp = 17;
+	else if (opt.alg == "mlp") pp = 59;
 
 	DataHolder dh(false, 1, 0);
 	if(opt.alg.find("nmf") !=std::string::npos)
 		dh.loadNMF(opt.fnData, ",", opt.algParam, false, true);
 	else if(opt.alg.find("lda") !=std::string::npos)
-		dh.loadLDA(opt.fnData, ",");
+		dh.loadLDA(opt.fnData, ",", 7);
 	else
-		dh.load(opt.fnData, ",", opt.idSkip, opt.idY, false, true);
+		dh.load(opt.fnData, ",", opt.idSkip, opt.idY, true, false, pp);
 
-	if(opt.doNormalize)
-		dh.normalize(false);
+	// if(opt.doNormalize)
+	// 	dh.normalize(false);
 
 	Model m;
 	try{
@@ -185,6 +191,8 @@ int main(int argc, char* argv[]){
 	vector<double> last;
 	double lastLoss = 0;
 	//int idx = 0;
+	int count = 0;
+	int tokenSize = -1;
 	while(getline(fin, line)){
 		if(line.size() < 3)
 			continue;
@@ -192,7 +200,21 @@ int main(int argc, char* argv[]){
 		//	continue;
 		// if(opt.show)
 		// 	cout << "parse line: " << line << endl;
-		pair<vector<double>, vector<double>> p = parseRecordLineIter(line);
+
+		pair<vector<string>, vector<double>> p;
+		// if(count++ == 0 && opt.alg != "sync")
+		// 	p = parseRecordLineIter(line, false);
+		// else
+			p = parseRecordLineIter(line, opt.doNormalize);
+			count++;
+
+		if (tokenSize == -1){
+			tokenSize = p.second.size();
+		}
+		else if (tokenSize != p.second.size()){
+			cout << "token Size prob: " << tokenSize << " -- " << p.second.size();
+			continue; // assert the same param size
+		}
 		// if(opt.show)
 		// 	cout << "time size: " << p.first.size() << "\tparam size: " << p.second.size() << endl;
 		double diff = 0.0;
@@ -217,10 +239,23 @@ int main(int argc, char* argv[]){
 			lastLoss = loss;
 		// }
 
-		if(opt.show)
-			cout << p.first[1] << "\t" << loss << "\t" << impro << "\t" << p.first[0] << endl;
-		if(write)
-			fout << p.first[1] << "," << loss << "," << impro << "," << p.first[0] << "\n";
+		if(opt.show) {
+			if(opt.doNormalize)
+				cout << p.first[1] << "," << loss << "," << impro << "," << p.first[2] 
+					<< "," << p.first[3] << "," << p.first[0] << endl;
+			else
+				cout << p.first[1] << "\t" << loss << "\t" << impro << "\t" << p.first[0] << endl;
+		}
+		if(write) {
+			if(opt.doNormalize) // or opt.alg == "sync")
+				fout << p.first[1] << "," << loss << "," << impro << "," << p.first[2] 
+					// << "," << (stoi(p.first[0])*stoi(opt.batchSize)) << "," << p.first[0] << "\n";
+					<< "," << p.first[3] << "," << p.first[0] << "\n";
+			else
+				fout << p.first[1] << "," << loss << "," << impro << "," << p.first[0] 
+					<< "," << p.first[3] << "\n";
+			fout.flush();
+		}
 	}
 	fin.close();
 	fout.close();

@@ -3,6 +3,7 @@
 #include "network/NetworkThread.h"
 #include "message/MType.h"
 #include "logging/logging.h"
+#include "util/Util.h"
 using namespace std;
 
 Master::Master() : Runner() {
@@ -10,13 +11,18 @@ Master::Master() : Runner() {
 	typeDDeltaAll = 128 + MType::DDelta;
 	
 	factorDelta = 1.0;
+	shrinkFactor = 1.0;
 	nx = 0;
 	// candiParam;
 	iter = 0;
 	nUpdate = 0;
 	nIterChange = 0;
 	lastArchIter = 0;
+	revDelta = std::vector<double>();
 	tmrArch.restart();
+	staleStats = "";
+	objEsti = 0;
+	objImproEsti = 0;
 
 	suOnline.reset();
 	suWorker.reset();
@@ -33,23 +39,61 @@ void Master::init(const Option* opt, const size_t lid)
 {
 	this->opt = opt;
 	nWorker = opt->nw;
-	if (opt->algorighm == "km" || opt->algorighm == "nmf"
-		 || opt->algorighm == "lda") {
-		trainer = new EM;
-	}else {
-		trainer = new GD;
-		trainer->setRate(opt->lrate);
-	}
-	
 	localID = lid;
 	ln = opt->logIter;
 	logName = "M";
+	curStats = "";
+	unSendDelta = 0;
+	freqSendParam = 1;
+	reportCnt = 0;
+	reportNum = 0;
+	glbBatchSize = opt->batchSize;
+	getDeltaCnt = 0;
+	ttDpProcessed = 0;
+	NCnt = 0;
+	D = -1;
+	deltaV.assign(nWorker+3, 0);
+	fastReady = false;
+	factorReady = false;
+	sentDReq = false;
+	avgV = 9999;
+
+	if (opt->algorighm == "km" || opt->algorighm == "nmf"
+		 || opt->algorighm == "lda" || opt->algorighm == "gmm") {
+		trainer = new EM;
+		std::vector<int> tokens = parseParam(opt->algParam);
+		K = tokens[0];
+		if (tokens.size() > 3){
+			lamda = double(tokens[1])/100;
+			range = tokens[2];
+			freqSendParam = tokens[3];
+		}
+
+		if (opt->mode.find("sm") !=std::string::npos){
+			glbBatchSize *= 0.9;
+		}
+		if (opt->mode.find("lg") !=std::string::npos){
+			glbBatchSize *= 1.1;
+		}
+	} else {
+		trainer = new GD;
+		trainer->setRate(opt->lrate);
+		if (opt->algorighm == "mlp"){
+			std::vector<int> tokens = parseParam(opt->algParam);
+			int tn = tokens.size();
+			freqSendParam = tokens[tn-1];
+		}
+		VLOG(1) << "FPM: " << freqSendParam;
+	}
+
 	setLogThreadName(logName);
-	if(opt->mode == "sync"){
+	if(opt->mode.find("sync") !=std::string::npos){
 		syncInit();
-	} else if(opt->mode == "async"){
+	} else if(opt->mode.find("asyc") !=std::string::npos){
 		asyncInit();
-	} else if(opt->mode == "fsb"){
+	} else if(opt->mode.find("pasp") !=std::string::npos){
+		progAsyncInit();
+	}else if(opt->mode == "fsb"){
 		fsbInit();
 		// TODO: add specific option for interval estimator
 		// ie.init(nWorker, { "fixed", to_string(opt->arvTime/opt->batchSize) });
@@ -85,18 +129,26 @@ void Master::run()
 	}
 	iter = 0;
 	tmrTrain.restart();
-	archiveProgress(true);
+	if(opt->mode.find("sync") !=std::string::npos)
+		archiveProgress(true);
+	else
+		archiveProgressAsync("0", true);
 	LOG(INFO) << "Broadcasting initial parameter";
-	broadcastParameter();
+	bool version = false;
+	if (opt->mode.find("asyc") !=std::string::npos)
+		version = true;
+	broadcastParameter(version);
 
 	LOG(INFO)<<"Start traning with mode: "<<opt->mode;
-	//tmrTrain.restart();
+	tmrTrain.restart();
 	iter = 1;
-	if(opt->mode == "sync"){
+	if(opt->mode.find("sync") !=std::string::npos){
 		syncProcess();
-	} else if(opt->mode == "async"){
+	} else if(opt->mode.find("asyc") !=std::string::npos){
 		asyncProcess();
-	} else if(opt->mode == "fsb"){
+	} else if(opt->mode.find("pasp") !=std::string::npos){
+		progAsyncProcess();
+	}else if(opt->mode == "fsb"){
 		fsbProcess();
 	} else if(opt->mode == "fab"){
 		fabProcess();
@@ -112,7 +164,7 @@ void Master::run()
 	double t = tmrTrain.elapseSd();
 	LOG(INFO) << "Finish training. Time cost: " << t << ". Iterations: " << iter
 		<< ". Average iteration time: " << t / iter;
-
+	LOG(INFO) << "Staleness:\t" << staleStats;
 	broadcastSignalTerminate();
 	regDSPProcess(MType::DDelta, localCBBinder(&Master::handleDeltaTail));
 	foutput.close();
@@ -218,12 +270,105 @@ void Master::asyncProcess()
 		suDeltaAny.reset();
 		size_t p = nUpdate / nWorker + 1;
 		if(iter != p){
-			archiveProgress();
+			// archiveProgress();
 			iter = p;
 			newIter = true;
 		}
 	}
 }
+
+void Master::progAsyncInit()
+{
+	factorDelta = 1.0;
+	regDSPProcess(MType::DDelta, localCBBinder(&Master::handleDeltaProgAsync));
+	regDSPProcess(MType::DReport, localCBBinder(&Master::handleReport));
+}
+
+void Master::progAsyncProcess()
+{
+	bool newIter = true;
+	double tl = tmrTrain.elapseSd();
+	tmrDeltaV.restart();
+	if (opt->algorighm == "lda")
+		model.resetparam();
+	while(!terminateCheck()){
+		// VLOG_EVERY_N(ln, 2) << "In iteration: " << iter << " update: " << nUpdate;
+		VLOG_EVERY_N(20, 1) << "In iteration: " << iter << " update: " << nUpdate 
+			<< " dp: " << ttDpProcessed;
+
+		if(opt->mode.find("pasp5") !=std::string::npos){
+			waitDeltaFromAll();
+			ttDpProcessed += getDeltaCnt;
+			broadcastParameter();
+			nUpdate++;
+			VLOG_IF(nUpdate < 3, 1) << "pasp5 broadcastParameter: " << iter << " update: " << nUpdate 
+				<< " dp: " << ttDpProcessed;
+			archiveProgressAsync(std::to_string(objImproEsti/getDeltaCnt), false);
+			getDeltaCnt = 0;
+		} 
+		else {
+			waitDeltaFromAny();
+			suDeltaAny.reset();
+		}
+
+		if(unSendDelta == 0){
+			++iter;
+		}
+	}
+}
+
+/*** void Master::progAsyncProcess()
+{
+	bool newIter = true;
+	double tl = tmrTrain.elapseSd();
+	if (opt->algorighm == "lda")
+		model.resetparam();
+	while(!terminateCheck()){
+		// if(newIter){
+		// 	VLOG_EVERY_N(ln, 1) << "Start iteration: " << iter;
+		// 	newIter = false;
+		// 	if(VLOG_IS_ON(2) && iter % 100 == 0){
+		// 		double t = tmrTrain.elapseSd();
+		// 		VLOG(2) << "  Average iteration time of recent 100 iterations: " << (t - tl) / 100;
+		// 		tl = t;
+		// 	}
+		// }
+		VLOG_EVERY_N(20, 1) << "In iteration: " << iter << " update: " << nUpdate;
+		waitDeltaFromAny();
+		suDeltaAny.reset();
+		// size_t p = nUpdate / freqSendParam;
+		if(unSendDelta == 0){
+			// archiveProgress();
+			++iter;
+			// newIter = true;
+		}
+	}
+} 
+void Master::handleDeltaProgAsync(const std::string & data, const RPCInfo & info)
+{
+	Timer tmr;
+	int s = wm.nid2lid(info.source);
+	auto delta = deserialize<vector<double>>(data);
+	size_t dpCnt = delta.back();
+	delta.pop_back();
+
+	stat.t_data_deserial += tmr.elapseSd();
+	applyDelta(delta, s);
+
+	rph.input(typeDDeltaAll, s);
+	rph.input(typeDDeltaAny, s);
+	//sendReply(info);
+	++stat.n_dlt_recv;
+	// directly send new parameter
+	// sendParameter(s);
+	++unSendDelta;
+	if (unSendDelta >= freqSendParam){
+		broadcastParameter();
+		++nUpdate;
+		unSendDelta = 0;
+		archiveProgressAsync("", true);
+	}
+}***/
 
 void Master::fsbInit()
 {
@@ -332,7 +477,8 @@ void Master::applyDelta(std::vector<double>& delta, const int source)
 
 bool Master::terminateCheck()
 {
-	return (iter >= opt->tcIter)
+	//return (iter >= opt->tcIter)
+	return (nUpdate >= opt->tcIter or iter >= opt->tcIter ) // for km pasp
 		|| (tmrTrain.elapseSd() > opt->tcTime
 		|| (nIterChange > 10));
 }
@@ -347,34 +493,86 @@ void Master::initializeParameter()
 			param.insert(param.end(), candiParam[i].begin(), candiParam[i].end());
 		}
 		model.init(opt->algorighm, nx, opt->algParam, param);
-	}else if(opt->algorighm.find("nmf") !=std::string::npos) {
+	} 
+	else if(opt->algorighm == "gmm") {
+
+		VLOG(3) << "GMM init param: nx:" << nx << " K:" << K 
+				<< ", candiSize:" << candiParam[0].size();
+
+		// candiParam[0].pop_back();
+		vector<double> param = candiParam[0];
+		for (int i = 1; i < candiParam.size(); i++) {
+			param.insert(param.end(), candiParam[i].begin(), candiParam[i].end()); /// for mean
+			// param.pop_back();
+		}
+		for (int k = 0; k < K; k++){
+			for (int d1 = 0; d1 < nx; d1++){
+				for (int d2 = 0; d2 < nx; d2++){
+					param.push_back(d1 == d2); /// for covariance
+				}
+			}
+		}
+		for (int k = 0; k < K; k++){
+			param.push_back(1.0/K); /// for weights
+		}
+		
+		model.init(opt->algorighm, nx, opt->algParam, param);
+	} else if(opt->algorighm.find("nmf") !=std::string::npos) {
 		model.init(opt->algorighm, nx, opt->algParam, unsigned(1)); // seed 1??
-	}else if(opt->algorighm.find("lda") !=std::string::npos) {
+	} else if(opt->algorighm.find("lda") !=std::string::npos) {
 		model.init(opt->algorighm, 10434, opt->algParam, unsigned(1)); // seed 1??
-	}else
+	} else
 		model.init(opt->algorighm, nx, opt->algParam, 0.01);
 }
 
-void Master::sendParameter(const int target)
-{
-	DVLOG(3) << "send parameter to " << target << " with: " << model.getParameter().weights;
+void Master::sendParameter(const int target, const bool sendVersion)
+{	
+	std::vector<double> np;
 	if (opt->algorighm == "lda"){
-		net->send(wm.lid2nid(target), MType::DParameter, model.getParameter().getLDAweights());
-	} else
-		net->send(wm.lid2nid(target), MType::DParameter, model.getParameter().weights);
+		np = model.getParameter().getLDAweights();
+	} else if (opt->algorighm == "gmm"){
+		np = model.getParameter().getGMMweights(K, nx, NCnt);
+	} else {
+		np = move(model.getParameter().getWeights());
+	}
+
+	// 	// np.push_back(nUpdate); //////////////// append param version
+	// 	DVLOG(3) << "send parameter to " << target << " with: " << np.size();
+	// 	net->send(wm.lid2nid(target), MType::DParameter, np);
+	// 	std::vector<double> np = model.getParameter().getLDAweights();
+	// 	np.push_back(nUpdate); //////////////// append param version
+	// 	DVLOG(3) << "send parameter to " << target << " with: " << np.size();
+	// 	net->send(wm.lid2nid(target), MType::DParameter, np);
+	// } else {
+	if (sendVersion)
+		np.push_back(nUpdate); //////////////// append param version
+	DVLOG(3) << "send parameter to " << target << " with: " << np.size()
+			<< ", nUpdate: " << nUpdate;
+	net->send(wm.lid2nid(target), MType::DParameter, np);
+	if (sendVersion)
+		np.pop_back();
+	
 	++stat.n_par_send;
 }
 
-void Master::broadcastParameter()
+void Master::broadcastParameter(const bool sendVersion)
 {	
-	DVLOG(3) << "broad parameter: " << model.getParameter().size();
+	VLOG_IF(revDelta.size() > 1 && iter<30, 1) << "rev Delta stat: " 
+			<< revDelta.back()-revDelta.front() << "; " << revDelta << ", " << shrinkFactor;
+	revDelta.clear();
 	if (opt->algorighm == "lda"){
 		std::vector<double> np = model.getParameter().getLDAweights();
-		DVLOG(3) << np.size() << " ; " << np;
+		np.push_back(nUpdate); //////////////// append param version
+		DVLOG(3) << "broad parameter: " << np.size() << " ; " << np;
 		net->broadcast(MType::DParameter, np);
+		// np.pop_back();
 	} else {
-		DVLOG(3) << model.getParameter().weights;
+		if (sendVersion)
+			model.getParameter().weights.push_back(nUpdate); //////////////// append param version
+		DVLOG(3) << "broad parameter: " << model.getParameter().weights.size() << " ; " << model.getParameter().weights;
 		net->broadcast(MType::DParameter, model.getParameter().weights);
+		if (sendVersion)
+			model.getParameter().weights.pop_back();
 	}
 	stat.n_par_send += nWorker;
 }
@@ -389,8 +587,11 @@ bool Master::needArchive()
 {
 	if(!foutput.is_open())
 		return false;
-	if(opt->algorighm == "km" || opt->algorighm.find("nmf") !=std::string::npos
-		|| opt->algorighm.find("lda") !=std::string::npos) {
+	if(opt->algorighm == "km" || opt->algorighm == "mlp") {
+		return true;
+	}
+	else if (opt->algorighm.find("nmf") !=std::string::npos
+		|| opt->algorighm.find("lda") !=std::string::npos ) {
 		if(iter < 8 || iter == 10 || iter == 14 || iter == 19
 			|| iter >= lastArchIter * 3 / 2
 			|| tmrArch.elapseSd() >= opt->arvTime)
@@ -415,6 +616,10 @@ bool Master::archiveProgress(const bool force)
 	if(!force && !needArchive())
 		return false;
 	foutput << iter << "," << tmrTrain.elapseSd();
+	
+	foutput << "," << ttDpProcessed << "," << objImproEsti;
+			// << "_" << objEsti << "__" << staleStats;
+
 	if (opt->algorighm.find("lda") !=std::string::npos){
 		// VLOG(2) << "------ archive LDA beta";
 		vector<double> beta = model.getParameter().getLDAweights();
@@ -428,6 +633,59 @@ bool Master::archiveProgress(const bool force)
 		}
 	}
 	foutput <<"\n";
+	staleStats = "";
+	objEsti = 0;
+	objImproEsti = 0;
+	return true;
+}
+
+bool Master::needArchiveAsync(int it)
+{
+	if(!foutput.is_open())
+		return false;
+	if(it < 10 // or (nUpdate < 10 and nUpdate % (2) == 0) 
+		or (it < 21 and it % (2) == 0)
+		or (it < 81 and it % (4) == 0) 
+		or (it < 101 and it % (8) == 0) 
+		or (it < 201 and it % (16) == 0) 
+		or (it < 801 and it % (32) == 0) 
+		or it % 100 == 0
+		// or (nUpdate > 700 and nUpdate < 800)
+		// or (nUpdate > 1700 and nUpdate < 1800)
+		){
+		lastArchIter = it;
+		tmrArch.restart();
+		return true;
+	}
+	return false;
+}
+
+bool Master::archiveProgressAsync(std::string staleStats, const bool force)
+{
+	// int iterCnt = (opt->mode.find("asyc") !=std::string::npos) ? nUpdate : iter;
+
+	if(!force && !needArchiveAsync(nUpdate))
+		return false;
+	foutput << nUpdate << "," << tmrTrain.elapseSd();
+	// if (ttDpProcessed > 0){
+	foutput << "," << ttDpProcessed;
+	// }
+	if(staleStats.size() > 0)
+		foutput << "," << staleStats;
+
+	if (opt->algorighm.find("lda") !=std::string::npos){
+		// VLOG(2) << "------ archive LDA beta";
+		vector<double> beta = model.getParameter().getLDAweights();
+		for(auto& v : beta){
+			foutput << "," << v;
+		}
+	} else {
+		for(auto& v : model.getParameter().weights){
+			foutput << "," << v;
+		}
+	}
+	foutput <<"\n";
+	// foutput.flush();
 	return true;
 }
 
@@ -508,11 +766,11 @@ void Master::handleXLength(const std::string& data, const RPCInfo& info){
 	Timer tmr;
 	int source = wm.nid2lid(info.source);
 
-	if(opt->algorighm == "km") {
+	if(opt->algorighm == "km" || opt->algorighm == "gmm") {
 		// if(source == 0) { // initial parameter from top k data in worker 0
 			std::vector<double> centroids = deserialize<std::vector<double>>(data);
 			stat.t_data_deserial += tmr.elapseSd();
-			int k = stoi(opt->algParam);
+			// int k = stoi(opt->algParam);
 			int numK = centroids.back();
 			if(numK == 0) return;
 			centroids.pop_back();
@@ -520,7 +778,7 @@ void Master::handleXLength(const std::string& data, const RPCInfo& info){
 				nx = centroids.size()/numK;
 			} else if(nx != centroids.size()/numK){
 				LOG(FATAL)<<"dataset on "<<source<<" does not match with others: "<<
-					nx << " " << numK << " " << centroids.size()/k;
+					nx << " " << numK << " " << centroids.size()/K;
 			}
 			if (candiParam.empty()){
 				candiParam.assign(nWorker, vector<double>());
@@ -557,10 +815,30 @@ void Master::handleXLength(const std::string& data, const RPCInfo& info){
 void Master::handleDelta(const std::string & data, const RPCInfo & info)
 {
 	Timer tmr;
+	revDelta.push_back(tmrTrain.elapseSd());
 	auto delta = deserialize<vector<double>>(data);
 	stat.t_data_deserial += tmr.elapseSd();
 	int s = wm.nid2lid(info.source);
+
+	if (opt->algorighm == "km"){
+		double obj = delta.back();
+		delta.pop_back();
+		double objImprove = delta.back();
+		delta.pop_back();
+
+		staleStats += "_" + std::to_string(s) + "_" + std::to_string(obj) 
+			+ "_" + std::to_string(objImprove);
+		objEsti += obj;
+		objImproEsti += objImprove;
+	}
+	else if (opt->algorighm == "mlp"){
+		double objImprove = l1norm0(delta);
+
+		staleStats += "_" + std::to_string(s) + "_" + std::to_string(objImprove);
+		objImproEsti += objImprove;
+	}
 	applyDelta(delta, s);
+	ttDpProcessed += opt->batchSize/nWorker;
 	rph.input(typeDDeltaAll, s);
 	rph.input(typeDDeltaAny, s);
 	//sendReply(info);
@@ -570,17 +848,156 @@ void Master::handleDelta(const std::string & data, const RPCInfo & info)
 void Master::handleDeltaAsync(const std::string & data, const RPCInfo & info)
 {
 	Timer tmr;
-	auto delta = deserialize<vector<double>>(data);
-	stat.t_data_deserial += tmr.elapseSd();
 	int s = wm.nid2lid(info.source);
+	auto delta = deserialize<vector<double>>(data);
+	size_t staleParam = delta.back();
+	delta.pop_back();
+	curStale = nUpdate - staleParam;
+	// if(lastArchIter != nUpdate and curStale > 20){
+	// 	archiveProgressAsync(curStats, true);
+	// }
+	curStats = std::to_string(nUpdate) + "--" + std::to_string(staleParam) 
+			+ "--" + std::to_string(curStale) + "--" + std::to_string(s);
+
+	staleStats += curStats + "\n";
+
+	stat.t_data_deserial += tmr.elapseSd();
 	applyDelta(delta, s);
+	ttDpProcessed += opt->batchSize/nWorker;
 	++nUpdate;
+	if(curStale > 20){
+		archiveProgressAsync(curStats, true);
+	}
+	else{
+		archiveProgressAsync(curStats);
+	}
 	rph.input(typeDDeltaAll, s);
 	rph.input(typeDDeltaAny, s);
 	//sendReply(info);
 	++stat.n_dlt_recv;
 	// directly send new parameter
-	sendParameter(s);
+	sendParameter(s, true);
+}
+
+void Master::handleDeltaProgAsync(const std::string & data, const RPCInfo & info)
+{
+	Timer tmr;
+	int s = wm.nid2lid(info.source);
+	auto delta = deserialize<vector<double>>(data);
+	int deltaCnt = delta.back();
+	getDeltaCnt += deltaCnt;
+	delta.pop_back();
+
+	stat.t_data_deserial += tmr.elapseSd();
+	applyDelta(delta, s);
+
+	double thread = glbBatchSize;
+	if(opt->mode.find("pasp4") !=std::string::npos){
+		thread = glbBatchSize * shrinkFactor;
+	}
+	//// pasp5 send out the interval
+	if(opt->mode.find("pasp5") !=std::string::npos && nUpdate == 0){
+		double tt = tmrTrain.elapseSd();
+		VLOG(1) << "Broadcast Interval: " << tt << " for " << deltaCnt << " from " << s;
+		net->broadcast(MType::CTrainInterval, tt * freqSendParam / deltaCnt / nWorker);
+	}
+	
+	if (opt->algorighm == "mlp"){
+		double objImprove = l1norm0(delta);
+		staleStats += "_" + std::to_string(s) + "_" + std::to_string(objImprove);
+		objImproEsti += objImprove;
+	}
+
+	VLOG(3) << " Rev Delta from " << s << ", getDeltaCnt: " << getDeltaCnt 
+			<< ", thread: " << thread;
+
+	rph.input(typeDDeltaAll, s);
+
+	if (getDeltaCnt > thread && opt->mode.find("pasp5") == std::string::npos) {
+		rph.input(typeDDeltaAny, s);
+		// ++unSendDelta;
+	// if (unSendDelta >= freqSendParam){
+		broadcastParameter();
+		sentDReq = false;
+		tmrDeltaV.restart();
+		deltaV.assign(nWorker+3, 0);
+		ttDpProcessed += getDeltaCnt;
+		reportNum = 0;
+		fastReady = false;
+		factorReady = false;
+		
+		++nUpdate;
+		// VLOG_IF(nUpdate<5,1) << "pasp4 shrinkFactor: " << shrinkFactor;
+		archiveProgressAsync(std::to_string(shrinkFactor)+"_"
+				+std::to_string(objImproEsti/getDeltaCnt), false);
+		shrinkFactor = 1.0;
+		getDeltaCnt = 0;
+		objImproEsti = 0.0;
+	// }
+	}
+	//sendReply(info);<< "," << objImproEsti
+	++stat.n_dlt_recv;
+	// directly send new parameter
+	// sendParameter(s);
+	// ++unSendDelta;
+	// if (unSendDelta >= freqSendParam){
+	// 	broadcastParameter();
+	// 	++nUpdate;
+	// 	unSendDelta = 0;
+	// 	archiveProgressAsync("", true);
+	// }
+}
+void Master::handleReport(const std::string & data, const RPCInfo & info)
+{
+	Timer tmr;
+	revDelta.push_back(tmrTrain.elapseSd());
+	if (sentDReq)
+		return;
+
+	reportCnt += deserialize<int>(data);
+	reportNum++;
+	stat.t_data_deserial += tmr.elapseSd();
+	int s = wm.nid2lid(info.source);
+    // VLOG_IF(nUpdate < 2, 1) << "Delta report " << s << ", " << deltaV;
+
+	//// decide normal workers and stragglers
+	if (deltaV[s] == 0){
+		deltaV[s] = 1/tmrDeltaV.elapseSd();
+		deltaV[nWorker+1] = (deltaV[nWorker+1]*deltaV[nWorker] + deltaV[s])/(deltaV[nWorker]+1);
+		deltaV[nWorker] += 1;
+		if (!fastReady)
+			deltaV[nWorker+2] = deltaV[s];
+ 	}
+	if (!fastReady && ( (int)deltaV[nWorker]*2 == nWorker) || reportNum > nWorker){
+		fastReady = true;
+	}
+	if (fastReady && !factorReady){
+		int cnt = 0;
+		double sum = 0;
+		for (int i = 0; i < nWorker; i++){
+			if (deltaV[i] > deltaV[nWorker+2] * 0.9){
+				sum += deltaV[i];
+				cnt += 1;
+			}
+		}
+		shrinkFactor = deltaV[nWorker+1]*deltaV[nWorker]/nWorker * cnt/sum;
+		if ((int)deltaV[nWorker] == nWorker) 
+			factorReady = true;
+		VLOG_IF(nUpdate < 9 && factorReady, 1) << "V report " << deltaV 
+				<< ", " << deltaV[nWorker+2] << ", " << shrinkFactor;
+	}
+	
+	double cutoff = glbBatchSize;
+	//// pasp4 shrink the glbBatchSize
+	if(opt->mode.find("pasp4") !=std::string::npos){
+		cutoff = glbBatchSize * shrinkFactor;
+	}
+
+	if (reportCnt > cutoff){
+		net->broadcast(MType::DDeltaReq, "");
+		sentDReq = true;
+		reportCnt = 0;
+	}
 }
 
 void Master::handleDeltaFsb(const std::string & data, const RPCInfo & info)

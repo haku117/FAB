@@ -131,7 +131,7 @@ double Model::loss(const std::vector<double>& pred, const std::vector<double>& l
 	return kern->loss(pred, label);
 }
 
-std::vector<double> Model::gradient(const DataPoint & dp, std::vector<int>* z)
+std::vector<double> Model::gradient(const DataPoint & dp, std::vector<double>* z)
 {
 	return kern->gradient(dp.x, param.weights, dp.y, z);
 }
@@ -145,10 +145,10 @@ void Model::generateKernel(const std::string & name)
 	kern = KernelFactory::generate(name);
 }
 
-void Model::updateLocalZ(std::vector<double>& zz){
-	kern->updateLocalZ(zz);
-}
+// void Model::updateLocalZ(std::vector<double>& zz){
+// 	kern->updateLocalZ(zz);
+// }
 
-std::vector<double> Model::computeDelta(std::vector<double>& zz){
-	return kern->computeDelta(zz);
-}
+// std::vector<double> Model::computeDelta(std::vector<double>& zz){
+// 	return kern->computeDelta(zz);
+// }

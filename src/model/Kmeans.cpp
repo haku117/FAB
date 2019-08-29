@@ -92,11 +92,12 @@ double Kmeans::loss(
 }
 
 std::vector<double> Kmeans::gradient(const std::vector<double>& x, const std::vector<double>& w, 
-		const std::vector<double>& y, std::vector<int>* z) const
+		const std::vector<double>& y, std::vector<double>* z) const
 {
 	std::vector<double> newZ = predict(x, w);
 	int id = (int) newZ[0];
 	int oldID = (*z)[0];
+	// double oldDist = (*z)[1];
 
 	VLOG(5) << "KM grad newZ " << id << " old Z " << oldID << " xlen " << xlength;
 
@@ -127,5 +128,14 @@ std::vector<double> Kmeans::gradient(const std::vector<double>& x, const std::ve
 	VLOG(5) << "new grad vector " << grad;
 			/// update assignment
 	(*z)[0] = id;
+	if((*z)[1] < 0.00001)
+		grad.push_back(newZ[1]); //// improvement
+	else
+		grad.push_back((*z)[1] - newZ[1]); //// improvement
+	if (abs(newZ[1]) > 1000){
+		VLOG(1) << "??????????????????? DIST: " << newZ[1] << "; " << (*z)[1];
+	}
+	grad.push_back(newZ[1]); //// improvement
+	(*z)[1] = newZ[1];
 	return grad;
 }

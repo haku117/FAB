@@ -11,7 +11,7 @@ public:
 	const DataHolder* pd;
 
 	/// local stats for each data point
-	std::vector<std::vector<int> > z;
+	// std::vector<std::vector<int> > z;
 
 public:
 	Trainer();
@@ -35,6 +35,11 @@ public:
 	virtual std::pair<size_t, std::vector<double>> batchDelta(
 		std::atomic<bool>& cond, const size_t start, const size_t cnt, const bool avg = true) = 0;
 
+	virtual std::pair<size_t, std::vector<double>> batchDelta(
+		std::atomic<bool>& cond, const size_t start, const size_t cnt, const double sleep, 
+				const double interval, const bool avg = true) = 0;
+
+
 	virtual std::pair<size_t, std::vector<double>> batchDeltaPipe(
 		std::atomic<bool>& cond, const size_t start, const size_t cnt, const size_t blk, 
 		const std::vector<int> blkSize, const bool avg = true) =0;
@@ -47,5 +52,7 @@ public:
 
 	virtual void initState(int dim = 0); /// initialize local state Z for EM
 	// void updateLocalZ(std::vector<double> zz);
+
+	void sleep(double seconds);
 };
 

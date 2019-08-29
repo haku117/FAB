@@ -23,8 +23,8 @@ target_link_libraries(postprocess
 	common data model train util
 )
 # exe: generate
-#add_executable(generate generate.cpp
-#	${HEADERS} ${SOURCES})
-#target_link_libraries(generate
-#	model util
-#)
+add_executable(generate generate.cpp
+	${HEADERS} ${SOURCES})
+target_link_libraries(generate
+	model util
+)

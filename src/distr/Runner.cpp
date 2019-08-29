@@ -89,7 +89,7 @@ void Runner::showStat() const
 		<< "\n"
 		<< "num-dlt-send: " << stat.n_dlt_send << "\tnum-dlt-recv: " << stat.n_dlt_recv 
 		<< "\ttime-dlt-calc: " << stat.t_dlt_calc << "\ttime-dlt-wait: " << stat.t_dlt_wait
-		<< "\tt_dlt_accumLcl: " << stat.t_dlt_accumLcl << "\tt_dlt_send" << stat.t_dlt_send
+		<< "\tt_dlt_accumLcl: " << stat.t_dlt_accumLcl << "\tt_dlt_send: " << stat.t_dlt_send
 		<< "\n"
 		<< "num-par-send: " << stat.n_par_send << "\tnum-par-recv: " << stat.n_par_recv
 		<< "\ttime-par-calc: " << stat.t_par_calc << "\ttime-par-wait: " << stat.t_par_wait

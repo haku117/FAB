@@ -38,23 +38,6 @@ void Parameter::init(const size_t n, std::function<double()> gen)
 	}
 }
 
-void Parameter::initLDA(const size_t ssSize, const int k, const unsigned seed)
-{
-	this->n = k;
-	int num_terms = ssSize / k - 1;
-	vector<double> ttk;
-	double r, ttsum;
-	for(size_t i = 0; i < ssSize - k; ++i){
-		r = ((double) rand() / (RAND_MAX)) + (double)1 / num_terms;
-		weights.push_back(r);
-		ttsum += r;
-		if (i % num_terms == num_terms - 1){
-			ttk.push_back(ttsum);
-		}
-	}
-	weights.insert(weights.end(), ttk.begin(), ttk.end());
-}
-
 void Parameter::set(const std::vector<double>& d)
 {
 	n = d.size();
@@ -105,6 +88,23 @@ bool Parameter::isSameParm(const Parameter& pp){
 // 		weights[i] = log(ss[i]) - log(ss[N + i/V]);
 // }
 
+void Parameter::initLDA(const size_t ssSize, const int k, const unsigned seed)
+{
+	this->n = k;
+	int num_terms = ssSize / k - 1;
+	vector<double> ttk;
+	double r, ttsum;
+	for(size_t i = 0; i < ssSize - k; ++i){
+		r = ((double) rand() / (RAND_MAX)) + (double)1 / num_terms;
+		weights.push_back(r);
+		ttsum += r;
+		if (i % num_terms == num_terms - 1){
+			ttk.push_back(ttsum);
+		}
+	}
+	weights.insert(weights.end(), ttk.begin(), ttk.end());
+}
+
 std::vector<double> Parameter::getLDAweights(bool flag){
 
 	std::vector<double> beta;
@@ -128,4 +128,26 @@ std::vector<double> Parameter::getLDAweights(bool flag){
 		}
 	}
 	return beta;
+}
+
+std::vector<double> Parameter::getGMMweights(int K, int D, int cnt, bool flag){
+
+	std::vector<double> ww;
+	/// sum_ll = weights[K*D*(D+1) + k]
+	for (int k = 0; k < K; k++){
+		for (int d = 0; d < D; d++){
+			ww.push_back(weights[k*D +d] / weights[K*D*(D+1) + k]);
+		}
+	}
+	for (int k = 0; k < K; k++){
+		for (int d1 = 0; d1 < D; d1++){
+			for (int d2 = 0; d2 < D; d2++){
+				ww.push_back(weights[K*D + k*D*D + d1*D + d2] / weights[K*D*(D+1) + k]);
+			}
+		}
+	}
+	for (int k = 0; k < K; k++){
+		ww.push_back(weights[K*D*(D+1) + k] / cnt);
+	}
+	return ww;
 }

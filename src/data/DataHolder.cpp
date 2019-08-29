@@ -23,7 +23,7 @@ size_t DataHolder::ylength() const{
 //
 void DataHolder::load(const std::string& fpath, const std::string& sepper,
 	const std::vector<int> skips, const std::vector<int>& yIds,
-	const bool header, const bool onlyLocalPart)
+	const bool header, const bool onlyLocalPart, const int pp)
 {
 	ifstream fin(fpath);
 	if(fin.fail()){
@@ -65,6 +65,11 @@ void DataHolder::load(const std::string& fpath, const std::string& sepper,
 			continue;
 		if(onlyLocalPart && lid++ % npart != pid) // not local line
 			continue;
+		if(header && lid++ % pp != 0) // for postprocess
+			continue;
+		
+		// if (lid > 10000)
+		// 	break;
 		DataPoint dp = parseLine(line, sepper, xIds, yIds_u, appendOne);
 		data.push_back(move(dp));
 	}
@@ -121,7 +126,7 @@ void DataHolder::loadNMF(const std::string& fpath, const std::string& sepper,
 	}
 }
 
-void DataHolder::loadLDA(const std::string& fpath, const std::string& sepper)
+void DataHolder::loadLDA(const std::string& fpath, const std::string& sepper, const int pp)
 {
 	ifstream fin(fpath);
 	if(fin.fail()){
@@ -135,8 +140,9 @@ void DataHolder::loadLDA(const std::string& fpath, const std::string& sepper)
 		nx += 1;
 		if(line.front() == '#') // invalid line
 			continue;
-
 		if(lid++ % npart != pid) // not local line
+			continue;
+		if(lid % pp != 0) // for postprocess
 			continue;
 		DataPoint dp = parseLineLDA(line, sepper, appendOne);
 		data.push_back(move(dp));

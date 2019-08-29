@@ -21,10 +21,12 @@ public:
 	void set(const std::vector<double>& d);
 	void set(std::vector<double>&& d);
 	void reset(const double v);
+	size_t size() const { return weights.size(); }
+
 	std::vector<double> getWeights() const { return weights; }
 
 	std::vector<double> getLDAweights(bool flag = false);
-	size_t size() const { return weights.size(); }
+	std::vector<double> getGMMweights(int K, int D, int cnt, bool flag = false);
 
 	bool isSameParm(const Parameter& pp);
 	

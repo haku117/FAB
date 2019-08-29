@@ -17,7 +17,7 @@ void EM::initState(int dim){
 		int xlen = pd->size();
 		// int dim = 1;//this.pm->getKernel()->lengthState();
 		LOG(INFO) << "initalize local state Z: " << xlen << " " << dim;
-		std::vector<std::vector<int> > matrix(xlen, std::vector<int>(dim, -1));
+		std::vector<std::vector<double> > matrix(xlen, std::vector<double>(dim, -1));
 		z = move(matrix);
 	}
 
@@ -105,6 +105,36 @@ std::pair<size_t, std::vector<double>> EM::batchDelta(
 			delta.assign(g.size(), 0.0);
 		for(size_t j = 0; j < g.size(); ++j)
 			delta[j] += g[j];
+	}
+
+	return make_pair(dp - start, move(delta));
+}
+
+std::pair<size_t, std::vector<double>> EM::batchDelta(std::atomic<bool>& cond, const size_t start, 
+		const size_t cnt, const double slp, const double interval, const bool avg)
+{
+	size_t end = start + cnt;
+
+	size_t nx = pm->paramWidth();
+
+	vector<double> delta;
+	size_t dp; // data point index
+	Timer tmr;
+	VLOG(3) << "param ss size:" << nx << " data size: " << pd[0].size();
+	VLOG(3) << "z size:" << z.size() << " z0: " << z[0];
+	for(dp = start; dp < end && (cond.load() || dp == start) && tmr.elapseSd() < interval; ++dp){
+
+		Timer tmr;
+		size_t i = dp % pd->size(); 	// round the data set
+		auto g = pm->gradient(pd->get(i), &(z[i]));
+		if (delta.size() == 0)
+			delta.assign(g.size(), 0.0);
+		for(size_t j = 0; j < g.size(); ++j)
+			delta[j] += g[j];
+		if (slp > 0.01){
+			double base = tmr.elapseSd();
+			sleep(base * slp);
+		}
 	}
 
 	return make_pair(dp - start, move(delta));

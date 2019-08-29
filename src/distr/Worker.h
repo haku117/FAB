@@ -26,6 +26,8 @@ private:
 	void fsbProcess();
 	void fabInit();
 	void fabProcess();
+	void progAsyncInit();
+	void progAsyncProcess();
 
 	///=== DeCentralized model
 	void dcSyncInit();
@@ -56,7 +58,8 @@ private:
 	// void broadcastSignalSync() { net->broadcast(MType::CTrainSync, ""); };
 
 	///=== Delta Process functions
-	void sendDelta(std::vector<double>& delta);
+	void sendDelta(std::vector<double>& delta, const int ss = -1);
+	void sendReport(const int cnt);
 	void broadcastDelta(std::vector<double>& delta);
 	void broadcastDeltaPlus(std::vector<double>& delta);
 	void ringcastDelta(std::vector<double>& delta);
@@ -98,16 +101,21 @@ public:
 	void handleDeltaRPLone(std::string& data, const RPCInfo& info);
 	void handleDeltaRPLtrans(std::string& data, const RPCInfo& info);
 	void handleDelta2c(std::string& data, const RPCInfo& info);
+	void handleDeltaRequest(std::string& data, const RPCInfo& info);
 
 	void handleReply(std::string& data, const RPCInfo& info);
 	void handleWorkerList(std::string& data, const RPCInfo& info);
 	void handleParameter(std::string& data, const RPCInfo& info);
 	void handleParameterFab(std::string& data, const RPCInfo& info);
 	void handleParameterFsb(std::string& data, const RPCInfo& info);
+	void handleParameterAsync(std::string& data, const RPCInfo& info);
+	void handleParameterProg(std::string& data, const RPCInfo& info);
+
 	void handlePause(std::string& data, const RPCInfo& info);
 	void handleSync(std::string& data, const RPCInfo& info);
 	void handleContinue(std::string& data, const RPCInfo& info);
 	void handleTerminate(std::string& data, const RPCInfo& info);
+	void handleInterval(std::string& data, const RPCInfo& info);
 		
 // util
 	size_t id2lvl(const size_t id);
@@ -116,6 +124,7 @@ public:
 private:
 	size_t dataPointer;
 	size_t localBatchSize;
+	size_t reportSize;
 	int ln; // log-every-n times
 
 	int masterNID; // network id of master
@@ -133,12 +142,20 @@ private:
 	size_t lastArchIter;		
 	Timer tmrGlb; // for monitoring the delta ariving time
 	double curCalT;
+	int curCnt;
+	double forceCalT;
 	int mltDD;
 	size_t curHlvl;
 	size_t mylvl;
 	size_t dstgrpID;
+	double interval;
 
-	size_t interval;
+	// int interval;
+	// int delayWorkers;
+	double lamda;
+	size_t range;
+	std::vector<double> delayArr;
+	size_t paramVersion;
 
 	int blkNum, nny; // block size for pipeline running
 	int stale; // record the current iter for updated param
@@ -164,11 +181,12 @@ private:
 	bool isbfDeltaExt;
 	std::vector<int> recSrcs; // list to send deltaRPL
 	
-	bool hasNewParam;
 	std::mutex mParam;
 	std::mutex mDelta;
 	Parameter bfParam;
 	SyncUnit suParam;
+	bool hasNewParam;
+	bool reqDelta;
 	//std::mutex mModel; // whether the model is in use
 
 	std::vector<double> bfDelta; // dcsync need to delete

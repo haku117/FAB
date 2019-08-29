@@ -18,15 +18,15 @@ void LDA::init(const int xlength, const std::string & param)
 	initBasic(xlength, param); // ??
 
 	// intail
-    for (int k = 0; k < num_topics; k++){
-    	for (int n = 0; n < num_terms; n++){
-			oldSS.push_back(0);
-		}
-		oldSS.push_back(0);
-	}
+    // for (int k = 0; k < num_topics; k++){
+    // 	for (int n = 0; n < num_terms; n++){
+	// 		oldSS.push_back(0);
+	// 	}
+	// 	oldSS.push_back(0);
+	// }
 
-	VLOG(3) << "Init LDA: " << num_topics << ", " << num_terms << ", " 
-			<< xlength << ", " << oldSS.size();
+	// VLOG(3) << "Init LDA: " << num_topics << ", " << num_terms << ", " 
+	// 		<< xlength << ", " << oldSS.size();
 	// for (int i = 0; i < num_topics * (num_terms + 1); i++){
 	// 	beta.push_back(0);
 	// }
@@ -219,7 +219,7 @@ double LDA::loss(
 }
 
 std::vector<double> LDA::gradient(const std::vector<double>& x, const std::vector<double>& w, 
-		const std::vector<double>& y, std::vector<int>* z) const
+		const std::vector<double>& y, std::vector<double>* z) const
 {
 	std::vector<double> phi = predict(x, w, y);
 	phi.pop_back(); // remove likelihood
@@ -247,24 +247,35 @@ std::vector<double> LDA::gradient(const std::vector<double>& x, const std::vecto
     // CW.insert(CW.end(), CTT.begin(), CTT.end());
 	// VLOG_IF(CW[0] != CW[0], 3) << "gradient: " << docN << ", " << CW.size() << ", " << CW;
 	// VLOG_IF(CW[0] != CW[0], 3) << "phi: " << phi;
-	return CW;
+	if (CW.size() != z->size()){
+		z = &CW;
+		return CW;
+	}
+	else {
+		std::vector<double> delta;
+		for (int i = 0; i < CW.size(); i++){
+			delta.push_back(CW[i] - (*z)[i]);
+		}
+		z = &CW;
+		return delta;
+	}
 }
 
-void LDA::updateLocalZ(std::vector<double>& zz){
-	oldSS = move(zz);
-}
+// void LDA::updateLocalZ(std::vector<double>& zz){
+// 	oldSS = move(zz);
+// }
 
-std::vector<double> LDA::computeDelta(std::vector<double>& zz){
-	VLOG(3) << "worker compute delta: " << zz.size() << ", " << zz;
-	VLOG(3) << "oldSS: " << oldSS.size() << ", " << oldSS;
-	if (oldSS.size() != zz.size()) {
-		oldSS = zz;
-		return move(zz);
-	}
-	std::vector<double> delta;
-	for (int i = 0; i < zz.size(); i++) {
-		delta.push_back(zz[i] - oldSS[i]);
-		oldSS[i] = zz[i];
-	}
-	return delta;
-}
+// std::vector<double> LDA::computeDelta(std::vector<double>& zz){
+// 	VLOG(3) << "worker compute delta: " << zz.size() << ", " << zz;
+// 	VLOG(3) << "oldSS: " << oldSS.size() << ", " << oldSS;
+// 	if (oldSS.size() != zz.size()) {
+// 		oldSS = zz;
+// 		return move(zz);
+// 	}
+// 	std::vector<double> delta;
+// 	for (int i = 0; i < zz.size(); i++) {
+// 		delta.push_back(zz[i] - oldSS[i]);
+// 		oldSS[i] = zz[i];
+// 	}
+// 	return delta;
+// }

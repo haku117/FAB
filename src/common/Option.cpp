@@ -59,15 +59,20 @@ bool Option::parse(int argc, char * argv[], const size_t nWorker)
 		tcIter = stoulKMG(argv[idx++]); // maximum iteration
 		tcTime = stod(argv[idx++]); // maximum training time
 		//tcDiff = stod(argv[idx++]); // minimum improvement cross iterations
-
-		if(argc > optIdx++)
+		if(argc > optIdx++) {
 			arvIter = stoiKMG(argv[idx++]);
-		if(argc > optIdx++)
+		}
+		if(argc > optIdx++){
 			arvTime = stod(argv[idx++]);
-		if(argc > optIdx++)
+		}
+		if(argc > optIdx++){
+			// cout << "param: " << idx << " -> " << argv[idx] << endl;
 			logIter = stoiKMG(argv[idx++]);
+			// cout << "param: " << idx << " -> " << argv[idx] << "; ";
+		}
 	} catch(exception& e){
-		cerr << "Cannot parse the " << idx << "-th parameter: " << argv[idx] << endl;
+		cerr << "Cannot parse the " << idx << "-th parameter: " << argv[idx-1] 
+			<< " prev: " << argv[idx-2] << endl;
 		cerr << "Error message: " << e.what() << endl;
 		return false;
 	}
@@ -101,7 +106,8 @@ bool Option::preprocessMode(){
 		if(ch >= 'A' && ch <= 'Z')
 			ch += 'a' - 'A';
 	}
-	if(mode == "sync" || mode == "async" || mode == "fsb" || mode == "fab" 
+	if(mode.find("sync")!=std::string::npos || mode.find("asyc")!=std::string::npos 
+		|| mode == "fsb" || mode == "fab" || mode.find("pasp")!=std::string::npos 
 		|| mode == "dcsync" || mode.find("dcfsb")!=std::string::npos 
 		|| mode.find("dc")!=std::string::npos  
 		|| mode.find("grp")!=std::string::npos  
@@ -121,11 +127,13 @@ bool Option::processAlgorithm(){
 		return true;
 	} else if(algorighm == "cnn"){
 		return true;
-	} else if(algorighm == "km"){
+	} else if(algorighm.find("km")!=std::string::npos){
 		return true;
 	} else if(algorighm.find("nmf")!=std::string::npos){
 		return true;
 	} else if(algorighm.find("lda")!=std::string::npos){
+		return true;
+	} else if(algorighm.find("gmm")!=std::string::npos){
 		return true;
 	}
 	return false;

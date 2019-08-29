@@ -45,10 +45,10 @@ public:
 	double loss(const DataPoint& dp) const;
 	double loss(const std::vector<double>& pred, const std::vector<double>& label) const;
 	// std::vector<double> gradient(const DataPoint& dp) const;
-	std::vector<double> gradient(const DataPoint& dp, std::vector<int>* z = nullptr);
+	std::vector<double> gradient(const DataPoint& dp, std::vector<double>* z = nullptr);
 
-	void updateLocalZ(std::vector<double>& zz);
-	std::vector<double> computeDelta(std::vector<double>& zz);
+	// void updateLocalZ(std::vector<double>& zz);
+	// std::vector<double> computeDelta(std::vector<double>& zz);
 
 private:
 	void generateKernel(const std::string& name);

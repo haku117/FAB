@@ -20,4 +20,6 @@ public:
 
 	static double Now();
 	static double NowSinceBoot();
+
+	void sleep(double seconds);
 };

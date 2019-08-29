@@ -20,7 +20,7 @@ public:
 
 	double loss(const std::vector<double>& pred, const std::vector<double>& label) const;
 	std::vector<double> gradient(const std::vector<double>& x, const std::vector<double>& w, 
-		const std::vector<double>& y, std::vector<int>* z) const;
+		const std::vector<double>& y, std::vector<double>* z) const;
 
 	// vector<vector<double>> multiVectorConvert(const std::vector<double>& w) const;
 	double eudist(const std::vector<double>& x, const std::vector<double>& c, const int num) const;

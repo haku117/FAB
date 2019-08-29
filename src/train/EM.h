@@ -5,7 +5,8 @@ class EM : public Trainer
 {
 	double rate;
 	/// local stats for each data point
-	std::vector<std::vector<int> > z;
+	std::vector<std::vector<double> > z;
+	// std::vector<std::vector<double> > oldSS;
 	// std::vector<std::vector<double> > localParam;
 
 public:
@@ -24,6 +25,9 @@ public:
 	virtual std::pair<size_t, std::vector<double>> batchDelta(
 		std::atomic<bool>& cond, const size_t start, const size_t cnt, const bool avg = true);
 	///// temprate remove const for 2 functions
+	virtual std::pair<size_t, std::vector<double>> batchDelta(
+		std::atomic<bool>& cond, const size_t start, const size_t cnt, const double sleep, 
+				const double interval, const bool avg = true);
 
 	virtual std::pair<size_t, std::vector<double>> batchDeltaPipe(std::atomic<bool>& cond, 
 		const size_t start, const size_t cnt, const size_t blk, const std::vector<int> blkSize, 
