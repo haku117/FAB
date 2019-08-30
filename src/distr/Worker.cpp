@@ -482,7 +482,8 @@ void Worker::sendXLength(){
 			// int dp = rand() % trainer->pd->size(); /// random seed......
 			std::vector<double> OneDp = trainer->pd->get(i).x;
 			kCentroids.insert(kCentroids.end(), OneDp.begin(), OneDp.end());
-			// kCentroids.push_back(1); // for cluster counts
+			if(opt->algorighm == "km")
+				kCentroids.push_back(1); // for cluster counts
 		}
 		VLOG(2) << "s " << localID << ", " << i << ": " << kCentroids;
 		kCentroids.push_back(i);
@@ -517,15 +518,15 @@ void Worker::sendDelta(std::vector<double>& delta, const int ss)
 	// 	net->send(masterNID, MType::DDelta, dd);
 	// }
 	// else {
-		if (ss > 0)
-			delta.push_back(ss); /////// paramVersion
 		int size = delta.size();
 		if (opt->algorighm == "km") {
 			delta[size-1] /= localBatchSize;
 			delta[size-2] /= localBatchSize;
-			DVLOG(2) << "send delta: "  << delta[size-1] << "; " << delta[size-2];
+			DVLOG(2) << "send delta: " << delta[size-1] << "; " << delta[size-2];
 		}
-		DVLOG(3) << "; delta: " << size << "; " << delta;
+		if (ss > 0)
+			delta.push_back(ss); /////// paramVersion
+		DVLOG(3) << "; delta: " << ss << "; " << size << "; " << delta;
 		net->send(masterNID, MType::DDelta, delta);
 		if (ss > 0)
 			delta.pop_back();
@@ -1348,7 +1349,6 @@ void Worker::progAsyncProcess()
 		tie(cnt, bfDelta) = trainer->batchDelta(allowTrain, dataPointer, remainCnt, dly, true);
 		updatePointer(cnt);
 
-		DVLOG(3) << "send delta: " << cnt << "; " << bfDelta.size() << "; " << bfDelta;
 		copyDelta(bufferDeltaExt, bfDelta); 
 		curCnt += cnt;
 		curCalT += tmr.elapseSd();
@@ -1358,6 +1358,7 @@ void Worker::progAsyncProcess()
 		VLOG_EVERY_N(ln, 1) << "Iteration " << iter << ": calculate delta";
 			tmr.restart();
 			if(reqDelta){
+		DVLOG(3) << "send delta pasp: " << curCnt << "; " << bfDelta.size() << "; " << bfDelta;
 				sendDelta(bufferDeltaExt, curCnt);
 				reqDelta = false;
 				++iter;

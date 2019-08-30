@@ -587,9 +587,9 @@ bool Master::needArchive()
 {
 	if(!foutput.is_open())
 		return false;
-	if(opt->algorighm == "km" || opt->algorighm == "mlp") {
-		return true;
-	}
+	// if(opt->algorighm == "km" || opt->algorighm == "mlp") {
+	// 	return true;
+	// }
 	else if (opt->algorighm.find("nmf") !=std::string::npos
 		|| opt->algorighm.find("lda") !=std::string::npos ) {
 		if(iter < 8 || iter == 10 || iter == 14 || iter == 19
@@ -865,12 +865,12 @@ void Master::handleDeltaAsync(const std::string & data, const RPCInfo & info)
 	applyDelta(delta, s);
 	ttDpProcessed += opt->batchSize/nWorker;
 	++nUpdate;
-	if(curStale > 20){
-		archiveProgressAsync(curStats, true);
-	}
-	else{
+	// if(curStale > 20){
+	// 	archiveProgressAsync(curStats, true);
+	// }
+	// else{
 		archiveProgressAsync(curStats);
-	}
+	// }
 	rph.input(typeDDeltaAll, s);
 	rph.input(typeDDeltaAny, s);
 	//sendReply(info);
@@ -908,7 +908,7 @@ void Master::handleDeltaProgAsync(const std::string & data, const RPCInfo & info
 		objImproEsti += objImprove;
 	}
 
-	VLOG(3) << " Rev Delta from " << s << ", getDeltaCnt: " << getDeltaCnt 
+	VLOG(3) << " Rev Delta from " << s << ", " << deltaCnt << ", getDeltaCnt: " << getDeltaCnt 
 			<< ", thread: " << thread;
 
 	rph.input(typeDDeltaAll, s);
@@ -958,7 +958,7 @@ void Master::handleReport(const std::string & data, const RPCInfo & info)
 	reportNum++;
 	stat.t_data_deserial += tmr.elapseSd();
 	int s = wm.nid2lid(info.source);
-    // VLOG_IF(nUpdate < 2, 1) << "Delta report " << s << ", " << deltaV;
+    VLOG_IF(nUpdate < 20, 3) << "Delta report " << s << ", " << deltaV;
 
 	//// decide normal workers and stragglers
 	if (deltaV[s] == 0){
