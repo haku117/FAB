@@ -147,14 +147,13 @@ void accumuteDeltaSave(std::vector<double>& delta, std::vector<double>& d){
 	}
 }
 
-std::vector<int> parseParam(const std::string& param){
+std::vector<int> parseParam(const std::string& param, const std::string& sepper){
 
 	size_t pstart = 0, pend = 0;
 	std::vector<int> tokens;
-	std::string delimiter = ",";
-	while ((pend = param.find(delimiter, pstart)) != std::string::npos) {
+	while ((pend = param.find(sepper, pstart)) != std::string::npos) {
     	tokens.push_back(str2int(param.substr(pstart, pend)));
-    	pstart = pend + delimiter.length();
+    	pstart = pend + sepper.length();
 	}
     tokens.push_back(str2int(param.substr(pstart)));
 	// if(tokens.size() != 3){

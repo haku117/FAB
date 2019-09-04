@@ -26,7 +26,7 @@ double vectorDifference(const vector<double>& a, const vector<double>& b){
 struct Option {
 	string alg;
 	string algParam;
-	string batchSize;
+	int dataFilter;
 	string fnRecord;
 	string fnData;
 	vector<int> idSkip;
@@ -44,7 +44,7 @@ struct Option {
 		try{
 			alg = argv[idx++];
 			algParam = argv[idx++];
-			batchSize = argv[idx++];
+			dataFilter = stoi(argv[idx++]);
 			fnRecord = argv[idx++];
 			fnData = argv[idx++];
 			idSkip = getIntList(argv[idx++]);
@@ -149,10 +149,10 @@ int main(int argc, char* argv[]){
 		return 2;
 	}
 	const bool write = !opt.fnOutput.empty();
-	int pp = 1;
-	if (opt.alg == "km") pp = 17;
-	else if (opt.alg == "lr") pp = 17;
-	else if (opt.alg == "mlp") pp = 59;
+	// int pp = 1;
+	// if (opt.alg == "km") pp = 17;
+	// else if (opt.alg == "lr") pp = 17;
+	// else if (opt.alg == "mlp") pp = 59;
 
 	DataHolder dh(false, 1, 0);
 	if(opt.alg.find("nmf") !=std::string::npos)
@@ -160,7 +160,7 @@ int main(int argc, char* argv[]){
 	else if(opt.alg.find("lda") !=std::string::npos)
 		dh.loadLDA(opt.fnData, ",", 7);
 	else
-		dh.load(opt.fnData, ",", opt.idSkip, opt.idY, true, false, pp);
+		dh.load(opt.fnData, ",", opt.idSkip, opt.idY, true, false, opt.dataFilter);
 
 	// if(opt.doNormalize)
 	// 	dh.normalize(false);

@@ -6,6 +6,7 @@
 #include <vector>
 #include <list>
 #include <mutex>
+#include <random>
 
 class Worker : public Runner{
 public:
@@ -59,7 +60,7 @@ private:
 
 	///=== Delta Process functions
 	void sendDelta(std::vector<double>& delta, const int ss = -1);
-	void sendReport(const int cnt);
+	void sendReport(std::vector<double>& report);
 	void broadcastDelta(std::vector<double>& delta);
 	void broadcastDeltaPlus(std::vector<double>& delta);
 	void ringcastDelta(std::vector<double>& delta);
@@ -152,6 +153,8 @@ private:
 
 	// int interval;
 	// int delayWorkers;
+	std::mt19937 gen;
+	std::exponential_distribution<double> distribution;
 	double lamda;
 	size_t range;
 	std::vector<double> delayArr;

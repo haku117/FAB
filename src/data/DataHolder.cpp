@@ -23,7 +23,7 @@ size_t DataHolder::ylength() const{
 //
 void DataHolder::load(const std::string& fpath, const std::string& sepper,
 	const std::vector<int> skips, const std::vector<int>& yIds,
-	const bool header, const bool onlyLocalPart, const int pp)
+	const bool header, const bool onlyLocalPart, const int pp, const int limit)
 {
 	ifstream fin(fpath);
 	if(fin.fail()){
@@ -68,8 +68,8 @@ void DataHolder::load(const std::string& fpath, const std::string& sepper,
 		if(header && lid++ % pp != 0) // for postprocess
 			continue;
 		
-		// if (lid > 10000)
-		// 	break;
+		if (limit > 0 && lid > limit)
+			break;
 		DataPoint dp = parseLine(line, sepper, xIds, yIds_u, appendOne);
 		data.push_back(move(dp));
 	}

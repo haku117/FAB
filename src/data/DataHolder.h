@@ -22,7 +22,8 @@ public:
 	// throw exceptions if something wrong
 	void load(const std::string& fpath, const std::string& sepper,
 		const std::vector<int> skips, const std::vector<int>& yIds,
-		const bool header, const bool onlyLocalPart = false, const int pp = 1);
+		const bool header, const bool onlyLocalPart = false, 
+		const int pp = 1, const int limit = -1);
 
 	void loadNMF(const std::string& fpath, const std::string& sepper,
 		// const std::vector<int> skips, const std::vector<int>& yIds,

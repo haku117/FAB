@@ -22,7 +22,7 @@ Master::Master() : Runner() {
 	tmrArch.restart();
 	staleStats = "";
 	objEsti = 0;
-	objImproEsti = 0;
+	objImproEsti = 0.0;
 
 	suOnline.reset();
 	suWorker.reset();
@@ -53,6 +53,10 @@ void Master::init(const Option* opt, const size_t lid)
 	NCnt = 0;
 	D = -1;
 	deltaV.assign(nWorker+3, 0);
+	deltaCount.assign(nWorker, 0);
+	deltaT.assign(nWorker, 0.0);
+	deltaObj.assign(nWorker, 0.0);
+
 	fastReady = false;
 	factorReady = false;
 	sentDReq = false;
@@ -63,28 +67,25 @@ void Master::init(const Option* opt, const size_t lid)
 		trainer = new EM;
 		std::vector<int> tokens = parseParam(opt->algParam);
 		K = tokens[0];
-		if (tokens.size() > 3){
-			lamda = double(tokens[1])/100;
-			range = tokens[2];
-			freqSendParam = tokens[3];
-		}
+		// if (tokens.size() > 3){
+		// 	// lamda = double(tokens[1])/100;
+		// 	// range = tokens[2];
+		// 	freqSendParam = tokens[3];
+		// }
 
-		if (opt->mode.find("sm") !=std::string::npos){
-			glbBatchSize *= 0.9;
-		}
-		if (opt->mode.find("lg") !=std::string::npos){
-			glbBatchSize *= 1.1;
-		}
+		if (opt->mode.find("sm") !=std::string::npos) glbBatchSize *= 0.9;
+		if (opt->mode.find("lg") !=std::string::npos) glbBatchSize *= 1.1;
+
 	} else {
 		trainer = new GD;
 		trainer->setRate(opt->lrate);
-		if (opt->algorighm == "mlp"){
-			std::vector<int> tokens = parseParam(opt->algParam);
-			int tn = tokens.size();
-			freqSendParam = tokens[tn-1];
-		}
-		VLOG(1) << "FPM: " << freqSendParam;
+		// if (opt->algorighm == "mlp"){
+		// 	std::vector<int> tokens = parseParam(opt->algParam);
+		// 	int tn = tokens.size();
+		// 	freqSendParam = tokens[tn-1];
+		// }
 	}
+	VLOG(1) << "FPM: " << opt->reptr;
 
 	setLogThreadName(logName);
 	if(opt->mode.find("sync") !=std::string::npos){
@@ -888,6 +889,13 @@ void Master::handleDeltaProgAsync(const std::string & data, const RPCInfo & info
 	getDeltaCnt += deltaCnt;
 	delta.pop_back();
 
+	deltaCount[s] += deltaCnt;
+	deltaObj[s] += delta.back();
+	objEsti += delta.back();
+	delta.pop_back();
+	deltaT[s] += tmrDeltaV.elapseSd();
+	objImproEsti += delta.back();
+
 	stat.t_data_deserial += tmr.elapseSd();
 	applyDelta(delta, s);
 
@@ -899,7 +907,7 @@ void Master::handleDeltaProgAsync(const std::string & data, const RPCInfo & info
 	if(opt->mode.find("pasp5") !=std::string::npos && nUpdate == 0){
 		double tt = tmrTrain.elapseSd();
 		VLOG(1) << "Broadcast Interval: " << tt << " for " << deltaCnt << " from " << s;
-		net->broadcast(MType::CTrainInterval, tt * freqSendParam / deltaCnt / nWorker);
+		net->broadcast(MType::CTrainInterval, tt * opt->reptr / deltaCnt / nWorker);
 	}
 	
 	if (opt->algorighm == "mlp"){
@@ -913,7 +921,7 @@ void Master::handleDeltaProgAsync(const std::string & data, const RPCInfo & info
 
 	rph.input(typeDDeltaAll, s);
 
-	if (getDeltaCnt > thread && opt->mode.find("pasp5") == std::string::npos) {
+	if (getDeltaCnt >= thread) { // && opt->mode.find("pasp5") == std::string::npos) {
 		rph.input(typeDDeltaAny, s);
 		// ++unSendDelta;
 	// if (unSendDelta >= freqSendParam){
@@ -928,11 +936,24 @@ void Master::handleDeltaProgAsync(const std::string & data, const RPCInfo & info
 		
 		++nUpdate;
 		// VLOG_IF(nUpdate<5,1) << "pasp4 shrinkFactor: " << shrinkFactor;
-		archiveProgressAsync(std::to_string(shrinkFactor)+"_"
-				+std::to_string(objImproEsti/getDeltaCnt), false);
+		string states = std::to_string(getDeltaCnt) + ";" + std::to_string(objEsti) 
+			+ ";" + std::to_string(objImproEsti);
+		for (int i = 0; i < nWorker; i++){
+			states += ";" + std::to_string(deltaCount[i])+"_"+std::to_string(deltaObj[i])+"_"
+					+std::to_string(deltaT[i]);
+		}
+
+		deltaCount.assign(nWorker, 0);
+		deltaT.assign(nWorker, 0.0);
+		deltaObj.assign(nWorker, 0.0);
+
+		// archiveProgressAsync(std::to_string(shrinkFactor)+"_"
+		// 		+std::to_string(objImproEsti/getDeltaCnt), false);
+		archiveProgressAsync(states, false);
 		shrinkFactor = 1.0;
 		getDeltaCnt = 0;
 		objImproEsti = 0.0;
+		objEsti = 0.0;
 	// }
 	}
 	//sendReply(info);<< "," << objImproEsti
@@ -951,49 +972,55 @@ void Master::handleReport(const std::string & data, const RPCInfo & info)
 {
 	Timer tmr;
 	revDelta.push_back(tmrTrain.elapseSd());
-	if (sentDReq)
+	if (sentDReq) //// ????
 		return;
 
-	reportCnt += deserialize<int>(data);
+	auto rpt = deserialize<std::vector<double> >(data);
+	reportCnt += rpt[0];
 	reportNum++;
 	stat.t_data_deserial += tmr.elapseSd();
 	int s = wm.nid2lid(info.source);
     VLOG_IF(nUpdate < 20, 3) << "Delta report " << s << ", " << deltaV;
 
-	//// decide normal workers and stragglers
-	if (deltaV[s] == 0){
-		deltaV[s] = 1/tmrDeltaV.elapseSd();
-		deltaV[nWorker+1] = (deltaV[nWorker+1]*deltaV[nWorker] + deltaV[s])/(deltaV[nWorker]+1);
-		deltaV[nWorker] += 1;
-		if (!fastReady)
-			deltaV[nWorker+2] = deltaV[s];
- 	}
-	if (!fastReady && ( (int)deltaV[nWorker]*2 == nWorker) || reportNum > nWorker){
-		fastReady = true;
-	}
-	if (fastReady && !factorReady){
-		int cnt = 0;
-		double sum = 0;
-		for (int i = 0; i < nWorker; i++){
-			if (deltaV[i] > deltaV[nWorker+2] * 0.9){
-				sum += deltaV[i];
-				cnt += 1;
-			}
-		}
-		shrinkFactor = deltaV[nWorker+1]*deltaV[nWorker]/nWorker * cnt/sum;
-		if ((int)deltaV[nWorker] == nWorker) 
-			factorReady = true;
-		VLOG_IF(nUpdate < 9 && factorReady, 1) << "V report " << deltaV 
-				<< ", " << deltaV[nWorker+2] << ", " << shrinkFactor;
-	}
-	
 	double cutoff = glbBatchSize;
 	//// pasp4 shrink the glbBatchSize
 	if(opt->mode.find("pasp4") !=std::string::npos){
+
+		//// decide normal workers and stragglers
+		if (deltaV[s] == 0){
+			deltaV[s] = 1/tmrDeltaV.elapseSd();
+			deltaV[nWorker+1] = (deltaV[nWorker+1]*deltaV[nWorker] + deltaV[s])/(deltaV[nWorker]+1);
+			deltaV[nWorker] += 1;
+			if (!fastReady)
+				deltaV[nWorker+2] = deltaV[s];
+		}
+		if (!fastReady && ( (int)deltaV[nWorker]*2 == nWorker) || reportNum > nWorker){
+			fastReady = true;
+		}
+		if (fastReady && !factorReady){
+			int cnt = 0;
+			double sum = 0;
+			for (int i = 0; i < nWorker; i++){
+				if (deltaV[i] > deltaV[nWorker+2] * 0.9){
+					sum += deltaV[i];
+					cnt += 1;
+				}
+			}
+			shrinkFactor = deltaV[nWorker+1]*deltaV[nWorker]/nWorker * cnt/sum;
+			if ((int)deltaV[nWorker] == nWorker) 
+				factorReady = true;
+			VLOG_IF(nUpdate < 9 && factorReady, 1) << "V report " << deltaV 
+					<< ", " << deltaV[nWorker+2] << ", " << shrinkFactor;
+		}
 		cutoff = glbBatchSize * shrinkFactor;
 	}
+	//// pasp5 measure obj score
+	else if (opt->mode.find("pasp5") !=std::string::npos){
+		
 
-	if (reportCnt > cutoff){
+	}
+
+	if (reportCnt >= cutoff){
 		net->broadcast(MType::DDeltaReq, "");
 		sentDReq = true;
 		reportCnt = 0;

@@ -60,7 +60,7 @@ int main(int argc, char* argv[]){
 			else if(opt.algorighm.find("lda") !=std::string::npos) 
 				dh.loadLDA(opt.fnData, ",");
 			else
-				dh.load(opt.fnData, ",", opt.idSkip, opt.idY, false, true);
+				dh.load(opt.fnData, ",", opt.idSkip, opt.idY, false, true, 1, opt.dataSize);
 				
 			DVLOG(2) << "data[0]: " << dh.get(0).x << " -> " << dh.get(0).y;
 			// if(dh.size() > 6)

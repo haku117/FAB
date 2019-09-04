@@ -45,6 +45,9 @@ bool Option::parse(int argc, char * argv[], const size_t nWorker)
 		mode = argv[idx++];
 		algorighm = argv[idx++];
 		algParam = argv[idx++];
+		dataSize = stoi(argv[idx++]);
+		straggler = argv[idx++];
+		reptr = stoi(argv[idx++]);
 		fabWait = false;
 
 		fnData = argv[idx++];

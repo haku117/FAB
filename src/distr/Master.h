@@ -103,7 +103,8 @@ private:
 	size_t unSendDelta, freqSendParam;
 	int reportCnt, reportNum, glbBatchSize, getDeltaCnt, ttDpProcessed;
 	Timer tmrDeltaV;
-	std::vector<double> deltaV, deltaSS;
+	std::vector<double> deltaV, deltaSS, deltaT, deltaObj;
+	std::vector<int> deltaCount;
 	double shrinkFactor, avgV;
 	bool fastReady, factorReady, sentDReq;
 	double objEsti, objImproEsti;

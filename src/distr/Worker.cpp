@@ -8,7 +8,6 @@
 #include "util/Util.h"
 #include "math.h"
 #include <unistd.h>
-// #include <random>
 
 using namespace std;
 
@@ -56,11 +55,16 @@ void Worker::init(const Option* opt, const size_t lid) {
 	logName = "W"+to_string(localID);
 	setLogThreadName(logName);
 
-	std::vector<int> tokens = parseParam(opt->algParam);
+	std::vector<int> tokens = parseParam(opt->straggler, ",");
 	int tn = tokens.size();
-	lamda = 0;
-	range = 0;
-	reportSize = 1;
+	lamda = tokens[0];
+	range = lamda > 0 && tn > 1 ? tokens[1] : 0;
+	if(lamda > 0) {
+		gen = mt19937(localID);
+		distribution = exponential_distribution<double>(lamda);
+	}
+
+	reportSize = opt->reptr;
 	reqDelta = false;
 	hasNewParam = false;
 	interval = 99999.9;
@@ -81,12 +85,12 @@ void Worker::init(const Option* opt, const size_t lid) {
 
 	if (opt->algorighm.find("km") !=std::string::npos) {
 		trainer = new EM;
-		if (tn > 1){
-			lamda = double(tokens[1])/100;
-			range = tokens[2];
-			// VLOG(1) << "new trainer " << opt->algorighm << ", lamda: " << lamda 
-			// 		<< ", range: " << range;
-		}
+		// if (tn > 1){
+		// 	lamda = double(tokens[1]);
+		// 	range = tokens[2];
+		// 	// VLOG(1) << "new trainer " << opt->algorighm << ", lamda: " << lamda 
+		// 	// 		<< ", range: " << range;
+		// }
 	}else if (opt->algorighm.find("nmf") !=std::string::npos) {
 		trainer = new EM;
 		trainer->setRate(opt->lrate);
@@ -97,23 +101,23 @@ void Worker::init(const Option* opt, const size_t lid) {
 	}else {
 		trainer = new GD;
 		trainer->setRate(opt->lrate);
-		if (opt->algorighm == "mlp" && tn > 4){
-			lamda = double(tokens[tn-3])/100;
-			range = tokens[tn-2];
-		}
-		if (opt->algorighm == "lr"){
-			lamda = double(tokens[1])/100;
-			range = tokens[2];
-		}
-		VLOG_IF(localID == 0, 1) << "new GD trainer "<< opt->algorighm << ", lamda: " << lamda 
-					<< ", range: " << range << ", tok: " << tokens;
+		// if (opt->algorighm == "mlp" && tn > 4){
+		// 	lamda = double(tokens[tn-3]);
+		// 	range = tokens[tn-2];
+		// }
+		// if (opt->algorighm == "lr"){
+		// 	lamda = double(tokens[1]);
+		// 	range = tokens[2];
+		// }
+		// VLOG_IF(localID == 0, 1) << "new GD trainer "<< opt->algorighm << ", lamda: " << lamda 
+		// 			<< ", range: " << range << ", tok: " << tokens;
 	}
 	/// initial delayArr
-	for (int i = 0; i < range; i++){
-		delayArr.push_back(lamda * exp(-lamda * i) * 10);
-	}
-	VLOG_IF(localID == 0, 1) << "DelayArr for " << lamda << ", " << range << " : " << delayArr;
-	srand(localID);
+	// for (int i = 0; i < range; i++){
+	// 	delayArr.push_back(lamda * exp(-lamda * i) * 10);
+	// }
+	VLOG_IF(localID == 0, 1) << "DelayFactor for " << lamda << ", " << range << ", " << reportSize;
+	// srand(localID);
 
 	/// for dc cache
 	deltaIndx0.assign(nWorker, false);
@@ -135,10 +139,10 @@ void Worker::init(const Option* opt, const size_t lid) {
 	} else if(opt->mode.find("asyc")!=std::string::npos){
 		asyncInit();
 	} else if(opt->mode.find("pasp") !=std::string::npos){
-		if (int p = opt->mode.find('-')) {
-			VLOG_IF(localID == 0, 1) << "report "<< opt->mode << ", " << p;
-			reportSize = stoi(opt->mode.substr(p+1));
-		}
+		// if (int p = opt->mode.find('-')) {
+		// 	VLOG_IF(localID == 0, 1) << "report "<< opt->mode << ", " << p;
+		// 	// reportSize = stoi(opt->mode.substr(p+1));
+		// }
 		progAsyncInit();
 	} else if(opt->mode == "fsb"){
 		fsbInit();
@@ -520,8 +524,8 @@ void Worker::sendDelta(std::vector<double>& delta, const int ss)
 	// else {
 		int size = delta.size();
 		if (opt->algorighm == "km") {
-			delta[size-1] /= localBatchSize;
-			delta[size-2] /= localBatchSize;
+			// delta[size-1] /= localBatchSize;
+			// delta[size-2] /= localBatchSize;
 			DVLOG(2) << "send delta: " << delta[size-1] << "; " << delta[size-2];
 		}
 		if (ss > 0)
@@ -534,10 +538,10 @@ void Worker::sendDelta(std::vector<double>& delta, const int ss)
 	++stat.n_dlt_send;
 }
 
-void Worker::sendReport(const int cnt)
+void Worker::sendReport(std::vector<double>& report)
 {
-	DVLOG(3) << "send report: " << cnt;
-	net->send(masterNID, MType::DReport, cnt);
+	DVLOG(3) << "send report: " << report;
+	net->send(masterNID, MType::DReport, report);
 }
 
 void Worker::broadcastDelta(std::vector<double>& delta)
@@ -1216,8 +1220,10 @@ void Worker::syncProcess()
 			// 		<< ", " << trainer->pd->size();
 			cnt = trainer->pd->size();
 		}
-		double dly = lamda > 0 ? delayArr[rand() % range] : 0; /// random seed......
-		tie(cnt, bfDelta) = trainer->batchDelta(allowTrain, dataPointer, cnt, dly, true);
+		double dly = lamda > 0 ? distribution(gen) : 0; /// random seed......
+		dly = dly > 1 || dly < 0.1 ? 0 : dly * range;
+
+ 		tie(cnt, bfDelta) = trainer->batchDelta(allowTrain, dataPointer, cnt, dly, -1);
 		updatePointer(cnt);
 		// double calT = tmr.elapseSd();
 		// if (calT < forceCalT/nWorker) { /// force homo case
@@ -1281,9 +1287,11 @@ void Worker::asyncProcess()
 			// VLOG(1) << "Inital bsize: " << localBatchSize << ", " << trainer->pd->xlength()
 			// 		<< ", " << trainer->pd->size();
 			cnt = trainer->pd->size();
-		}
-		double dly = lamda > 0 ? delayArr[rand() % range] : 0; /// random seed......
-		tie(cnt, bfDelta) = trainer->batchDelta(allowTrain, dataPointer, cnt, dly, true);
+		}\
+		double dly = lamda > 0 ? distribution(gen) : 0; /// random seed......
+		dly = dly > 1 || dly < 0.1 ? 0 : dly * range;
+
+		tie(cnt, bfDelta) = trainer->batchDelta(allowTrain, dataPointer, cnt, dly, -1);
 		updatePointer(cnt);
 
 		// double calT = tmr.elapseSd();
@@ -1327,15 +1335,9 @@ void Worker::progAsyncInit()
 void Worker::progAsyncProcess()
 {	
 	double sendT = 0;
-	double dly = 0; /// random seed......
-	if (lamda > 0.49){
-		dly = delayArr[rand() % range];
-	}
-	else{
-		if (localID < int(lamda * 10) * nWorker / 4){
-			dly = int(lamda*100) % 10;
-		}
-	}
+	double dly = lamda > 0 ? distribution(gen) : 0; /// random seed......
+	dly = dly > 1 || dly < 0.1 ? 0 : dly * range;
+
 	// size_t remaincnt = localBatchSize;
 	while(!exitTrain){
 		Timer tmr;
@@ -1346,7 +1348,7 @@ void Worker::progAsyncProcess()
 		if (opt->mode.find("pasp1") !=std::string::npos)
 			remainCnt = reportSize - curCnt;
 
-		tie(cnt, bfDelta) = trainer->batchDelta(allowTrain, dataPointer, remainCnt, dly, true);
+		tie(cnt, bfDelta) = trainer->batchDelta(allowTrain, dataPointer, remainCnt, dly, -1);
 		updatePointer(cnt);
 
 		copyDelta(bufferDeltaExt, bfDelta); 
@@ -1378,7 +1380,9 @@ void Worker::progAsyncProcess()
 				VLOG_IF(iter<5 && (localID < 3), 1) << "iter " << iter << " interrupt CALT: " << curCalT 
 						<< "; unit dp " << cnt << " : " << curCalT/cnt << " dly: " << dly
 						<< " ParamT: " << updateParamT;
-				dly = lamda > 0 ? delayArr[rand() % range] : 0;
+				
+				dly = lamda > 0 ? distribution(gen) : 0;
+				dly = dly > 1 || dly < 0.1 ? 0 : dly * range;
 			}
 			allowTrain = true;
 
@@ -1394,9 +1398,12 @@ void Worker::progAsyncProcess()
 				bfDelta.clear();
 				curCnt = 0;
 			}
-			else // if (opt->mode.find("pasp") !=std::string::npos)	
-				sendReport(cnt);
-			
+			else {// if (opt->mode.find("pasp") !=std::string::npos)
+				vector<double> report;
+				report.push_back(cnt);
+				report.push_back(bfDelta.back());
+				sendReport(report);
+			}
 			if (opt->mode.find("pasp2") !=std::string::npos)
 				model.accumulateParameter(bfDelta, factorDelta);
 

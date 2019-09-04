@@ -119,10 +119,11 @@ std::pair<size_t, std::vector<double>> EM::batchDelta(std::atomic<bool>& cond, c
 
 	vector<double> delta;
 	size_t dp; // data point index
-	Timer tmr;
+	Timer tmrTT;
 	VLOG(3) << "param ss size:" << nx << " data size: " << pd[0].size();
 	VLOG(3) << "z size:" << z.size() << " z0: " << z[0];
-	for(dp = start; dp < end && (cond.load() || dp == start) && tmr.elapseSd() < interval; ++dp){
+	for(dp = start; dp < end && (cond.load() || dp == start) && 
+		(interval < 0 || tmrTT.elapseSd() < interval); ++dp){
 
 		Timer tmr;
 		size_t i = dp % pd->size(); 	// round the data set

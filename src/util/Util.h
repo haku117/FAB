@@ -15,7 +15,7 @@ int stoiKMG(const std::string & str, const bool binary = false);
 size_t stoulKMG(const std::string & str, const bool binary = false);
 
 void accumuteDeltaSave(std::vector<double>& delta, std::vector<double>& d);
-std::vector<int> parseParam(const std::string& param);
+std::vector<int> parseParam(const std::string& param, const std::string& sepper = ",");
 int str2int(const std::string& token);
 
 double l1norm0(const std::vector<double>& dd);

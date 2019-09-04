@@ -15,6 +15,8 @@ struct Option{
 	bool fabWait; // force fab wait for its gradient reply before continue
 	std::string algorighm;
 	std::string algParam;
+	std::string straggler;
+	int reptr, dataSize;
 
 	double lrate; // learning rate
 	size_t nw; // number of workers
