@@ -94,7 +94,8 @@ std::pair<size_t, std::vector<double>> GD::batchDelta(std::atomic<bool>& cond,
 	vector<double> grad(nx, 0.0);
 	size_t i;
 
-	for(i = start; i < end && (cond.load() || i == start) && tmr.elapseSd() < interval; ++i){
+	for(i = start; i < end && (cond.load() || i == start) && 
+		(interval < 0 || tmr.elapseSd() < interval); ++i){
 		// auto g = pm->gradient(pd->get(i));
 		// vector<int>* zi = &(z.at(i));
 		Timer tmr;

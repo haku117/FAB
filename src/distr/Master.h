@@ -39,7 +39,7 @@ private:
 	bool terminateCheck();
 	void initializeParameter();
 	void sendParameter(const int target, const bool sendVersion = false);
-	void broadcastParameter(const bool sendVersion = false);
+	void broadcastParameter(const int sendVersion = -1);
 	void waitParameterConfirmed();
 	bool needArchive();
 	bool needArchiveAsync(int it);
@@ -93,7 +93,11 @@ private:
 	size_t nUpdate; // used for Async case
 	Timer tmrTrain;
 	int nIterChange;
-	std::vector<double> revDelta;
+	std::vector<double> revDelta, t_d, t_wrpt, obj_rpt, t_wdelta;
+	double t_mrpt, t_mdelta, t_mbrd;
+	int n_mrpt, n_mdelta;
+	bool bsAdjust;
+
 	std::string staleStats;
 	std::string curStats;
 	int curStale;

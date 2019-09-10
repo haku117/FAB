@@ -36,6 +36,7 @@ Worker::Worker() : Runner() {
 	bfDeltaCnt = 0;
 	bfDeltaCntExt = 0;
 	isbfDeltaExt = false;
+	t_wdelta = 0;
 
 	suOnline.reset();
 	suParam.reset();
@@ -1220,8 +1221,7 @@ void Worker::syncProcess()
 			// 		<< ", " << trainer->pd->size();
 			cnt = trainer->pd->size();
 		}
-		double dly = lamda > 0 ? distribution(gen) : 0; /// random seed......
-		dly = dly > 1 || dly < 0.1 ? 0 : dly * range;
+		double dly = dlyFunc();
 
  		tie(cnt, bfDelta) = trainer->batchDelta(allowTrain, dataPointer, cnt, dly, -1);
 		updatePointer(cnt);
@@ -1287,9 +1287,8 @@ void Worker::asyncProcess()
 			// VLOG(1) << "Inital bsize: " << localBatchSize << ", " << trainer->pd->xlength()
 			// 		<< ", " << trainer->pd->size();
 			cnt = trainer->pd->size();
-		}\
-		double dly = lamda > 0 ? distribution(gen) : 0; /// random seed......
-		dly = dly > 1 || dly < 0.1 ? 0 : dly * range;
+		}
+		double dly = dlyFunc();
 
 		tie(cnt, bfDelta) = trainer->batchDelta(allowTrain, dataPointer, cnt, dly, -1);
 		updatePointer(cnt);
@@ -1335,20 +1334,23 @@ void Worker::progAsyncInit()
 void Worker::progAsyncProcess()
 {	
 	double sendT = 0;
-	double dly = lamda > 0 ? distribution(gen) : 0; /// random seed......
-	dly = dly > 1 || dly < 0.1 ? 0 : dly * range;
+	double dly = dlyFunc();
 
+	Timer TTtmr;
+	double t_ws = 0, t_ws_prev = TTtmr.elapseSd();
 	// size_t remaincnt = localBatchSize;
 	while(!exitTrain){
 		Timer tmr;
 		// DVLOG(3) << "current parameter: " << model.getParameter().weights;
 		// try to use localBatchSize data-points, the actual usage is returned via cnt 
 		size_t cnt = 0;
+		
 		int remainCnt = reportSize;
 		if (opt->mode.find("pasp1") !=std::string::npos)
 			remainCnt = reportSize - curCnt;
 
 		tie(cnt, bfDelta) = trainer->batchDelta(allowTrain, dataPointer, remainCnt, dly, -1);
+		t_ws_prev = TTtmr.elapseSd();
 		updatePointer(cnt);
 
 		copyDelta(bufferDeltaExt, bfDelta); 
@@ -1357,10 +1359,10 @@ void Worker::progAsyncProcess()
 		stat.t_dlt_calc += tmr.elapseSd();
 		
 		if (!allowTrain){
-		VLOG_EVERY_N(ln, 1) << "Iteration " << iter << ": calculate delta";
+			VLOG_EVERY_N(ln, 1) << "Iteration " << iter << ": calculate delta";
 			tmr.restart();
 			if(reqDelta){
-		DVLOG(3) << "send delta pasp: " << curCnt << "; " << bfDelta.size() << "; " << bfDelta;
+				DVLOG(3) << "send delta pasp: " << curCnt << "; " << bfDelta.size() << "; " << bfDelta;
 				sendDelta(bufferDeltaExt, curCnt);
 				reqDelta = false;
 				++iter;
@@ -1370,6 +1372,10 @@ void Worker::progAsyncProcess()
 				bufferDeltaExt.clear();
 				curCnt = 0;
 				curCalT = 0;
+
+				/// worker send report time;
+				t_wdelta = TTtmr.elapseSd() - t_ws_prev;
+				t_ws_prev = TTtmr.elapseSd();
 			}
 			if(hasNewParam){
 				tmr.restart();
@@ -1381,8 +1387,7 @@ void Worker::progAsyncProcess()
 						<< "; unit dp " << cnt << " : " << curCalT/cnt << " dly: " << dly
 						<< " ParamT: " << updateParamT;
 				
-				dly = lamda > 0 ? distribution(gen) : 0;
-				dly = dly > 1 || dly < 0.1 ? 0 : dly * range;
+				double dly = dlyFunc();
 			}
 			allowTrain = true;
 
@@ -1401,7 +1406,10 @@ void Worker::progAsyncProcess()
 			else {// if (opt->mode.find("pasp") !=std::string::npos)
 				vector<double> report;
 				report.push_back(cnt);
-				report.push_back(bfDelta.back());
+				report.push_back(bufferDeltaExt.back());
+				report.push_back(curCalT/curCnt);
+				report.push_back(t_ws);
+				report.push_back(t_wdelta);
 				sendReport(report);
 			}
 			if (opt->mode.find("pasp2") !=std::string::npos)
@@ -1409,6 +1417,10 @@ void Worker::progAsyncProcess()
 
 			sendT += tmr.elapseSd();
 			stat.t_dlt_send += tmr.elapseSd();
+			
+			/// worker send report time;
+			t_ws = TTtmr.elapseSd() - t_ws_prev;
+			t_ws_prev = TTtmr.elapseSd();
 			// remaincnt = localBatchSize;
 		}
 		if(exitTrain==true){
@@ -1462,6 +1474,98 @@ void Worker::progAsyncProcess()
 		++iter;
 	}
 }***/
+
+void Worker::papProcess()
+{	
+	double sendT = 0;
+	double dly = dlyFunc();
+
+	Timer TTtmr;
+	double t_ws = 0, t_ws_prev = TTtmr.elapseSd();
+	while(!exitTrain){
+		Timer tmr;
+		// try to use localBatchSize data-points, the actual usage is returned via cnt 
+		size_t cnt = 0;
+
+		tie(cnt, bfDelta) = trainer->batchDelta(allowTrain, dataPointer, reportSize, dly, -1);
+		updatePointer(cnt); // cnt for this report
+		copyDelta(bufferDeltaExt, bfDelta); // accumulate delta before request
+
+		curCnt += cnt; // accumulate count for this mini-batch
+		curCalT += tmr.elapseSd();
+		stat.t_dlt_calc += tmr.elapseSd();
+		t_ws_prev = TTtmr.elapseSd();
+		
+		if (!allowTrain){
+			VLOG_EVERY_N(ln, 1) << "Iteration " << iter << ": calculate delta";
+			tmr.restart();
+			if(reqDelta){
+				DVLOG(3) << "send delta pasp: " << curCnt << "; " << bfDelta.size() << "; " << bfDelta;
+				sendDelta(bufferDeltaExt, curCnt);
+				reqDelta = false;
+				++iter;
+				VLOG_IF(iter<5 && (localID < 3), 1) << "iter " << iter << " CALT: " << curCalT 
+					<< "; unit dp " << curCnt << " : " << curCalT/curCnt  << " dly: " << dly
+					<< " sendT: " << sendT/curCnt;
+				bufferDeltaExt.clear();
+				curCnt = 0;
+				curCalT = 0;
+
+				/// worker send report time;
+				t_wdelta = TTtmr.elapseSd() - t_ws_prev;
+				t_ws_prev = TTtmr.elapseSd();
+			}
+			if(hasNewParam){
+				tmr.restart();
+				applyBufferParameter();
+				hasNewParam = false;
+				double updateParamT = tmr.elapseSd();
+				stat.t_par_calc += tmr.elapseSd();
+				VLOG_IF(iter<5 && (localID < 3), 1) << "iter " << iter << " interrupt CALT: " << curCalT 
+						<< "; unit dp " << cnt << " : " << curCalT/cnt << " dly: " << dly
+						<< " ParamT: " << updateParamT;
+				
+				double dly = dlyFunc();
+			}
+			allowTrain = true;
+
+		} else{
+			tmr.restart();
+			// VLOG_EVERY_N(ln, 2) << "  send delta";
+			if (opt->mode.find("pasp1") !=std::string::npos ||
+				opt->mode.find("pasp5") !=std::string::npos){
+				sendDelta(bfDelta, curCnt);
+				VLOG_IF(iter<5 && (localID < 3), 1) << "iter " << iter << " CALT: " << curCalT 
+					<< "; unit dp " << curCnt << " : " << curCalT/curCnt  << " dly: " << dly
+					<< " sendT: " << sendT/curCnt;
+				bfDelta.clear();
+				curCnt = 0;
+			}
+			else {// if (opt->mode.find("pasp") !=std::string::npos)
+				vector<double> report;
+				report.push_back(cnt);
+				report.push_back(bufferDeltaExt.back());
+				report.push_back(curCalT/curCnt);
+				report.push_back(t_ws);
+				report.push_back(t_wdelta);
+				sendReport(report);
+			}
+			if (opt->mode.find("pasp2") !=std::string::npos)
+				model.accumulateParameter(bfDelta, factorDelta);
+
+			sendT += tmr.elapseSd();
+			stat.t_dlt_send += tmr.elapseSd();
+			
+			/// worker send report time;
+			t_ws = TTtmr.elapseSd() - t_ws_prev;
+			t_ws_prev = TTtmr.elapseSd();
+			// remaincnt = localBatchSize;
+		}
+		if(exitTrain==true){
+			break;
+		}
+	}
+}
 
 void Worker::fsbInit()
 {
@@ -1717,11 +1821,19 @@ void Worker::handleParameterAsync(std::string& data, const RPCInfo & info)
 	//sendReply(info);
 	++stat.n_par_recv;
 }
+
 void Worker::handleParameterProg(std::string& data, const RPCInfo & info)
 {
 	Timer tmr;
 	auto weights = deserialize<vector<double>>(data);
 	stat.t_data_deserial += tmr.elapseSd();
+	/// adjust report size
+	if (opt->mode.find("pasp6") !=std::string::npos){
+		VLOG_IF(iter < 4, 1) << "glbBS: " << weights.back();
+		reportSize = weights.back()/4; /// update current param version
+		weights.pop_back();
+	}
+
 	Parameter p;
 	p.set(move(weights));
 	bufferParameter(p);
@@ -1796,4 +1908,15 @@ size_t Worker::id2lvl(const size_t id){
 
 int Worker::dstGrpID(const size_t id, const size_t lvl){
 	return id - id % int(pow(2, lvl+1));
+}
+
+double Worker::dlyFunc(){
+	double dly = lamda > 0 ? distribution(gen) : 0; /// random seed......
+	if (lamda > 100){
+		if (localID <= (lamda - 100) * nWorker / 100)
+			dly = range;
+	}
+	else
+		dly = dly > 1 || dly < 0.1 ? 0 : dly * range;
+	return dly;
 }

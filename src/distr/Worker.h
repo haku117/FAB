@@ -29,6 +29,8 @@ private:
 	void fabProcess();
 	void progAsyncInit();
 	void progAsyncProcess();
+	void papInit();
+	void papProcess();
 
 	///=== DeCentralized model
 	void dcSyncInit();
@@ -121,6 +123,7 @@ public:
 // util
 	size_t id2lvl(const size_t id);
 	int dstGrpID(const size_t id, const size_t lvl);
+	double dlyFunc();
 
 private:
 	size_t dataPointer;
@@ -150,6 +153,9 @@ private:
 	size_t mylvl;
 	size_t dstgrpID;
 	double interval;
+
+	// processing info
+	double t_wdelta;
 
 	// int interval;
 	// int delayWorkers;
