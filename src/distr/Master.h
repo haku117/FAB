@@ -75,6 +75,8 @@ public:
 	void handleDeltaDC(const std::string& data, const RPCInfo& info);
 	void handleDeltaProgAsync(const std::string& data, const RPCInfo& info);
 	void handleReport(const std::string& data, const RPCInfo& info);
+	
+	double avg(std::vector<double> arr, int n);
 
 private:
 	Parameter param;

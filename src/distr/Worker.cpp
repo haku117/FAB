@@ -179,7 +179,9 @@ void Worker::run() {
 	VLOG(3) << "finish bind model";
 	trainer->initState(1);
 	VLOG(3) << "finish init state";
+	Timer tctmr;
 	applyBufferParameter();
+	t_c = tctmr.elapseSd();
 	resumeTrain();
 
 	DLOG_IF(localID < 4, INFO) << "start training with mode: " << opt->mode 
@@ -480,6 +482,7 @@ void Worker::sendXLength(){
 			k = stoi(opt->algParam.substr(0, indx));
 		int i = 0;
 		int avgk = k / nWorker;
+		if (avgk == 0) avgk = 1;
 		if (localID < k % nWorker)
 			avgk += 1;
 		// for(; i < k && i < trainer->pd->size(); i++){
@@ -1381,11 +1384,11 @@ void Worker::progAsyncProcess()
 				tmr.restart();
 				applyBufferParameter();
 				hasNewParam = false;
-				double updateParamT = tmr.elapseSd();
+				t_c = tmr.elapseSd();
 				stat.t_par_calc += tmr.elapseSd();
 				VLOG_IF(iter<5 && (localID < 3), 1) << "iter " << iter << " interrupt CALT: " << curCalT 
 						<< "; unit dp " << cnt << " : " << curCalT/cnt << " dly: " << dly
-						<< " ParamT: " << updateParamT;
+						<< " ParamT: " << t_c;
 				
 				double dly = dlyFunc();
 			}
@@ -1410,6 +1413,7 @@ void Worker::progAsyncProcess()
 				report.push_back(curCalT/curCnt);
 				report.push_back(t_ws);
 				report.push_back(t_wdelta);
+				report.push_back(t_c);
 				sendReport(report);
 			}
 			if (opt->mode.find("pasp2") !=std::string::npos)
@@ -1476,7 +1480,7 @@ void Worker::progAsyncProcess()
 }***/
 
 void Worker::papProcess()
-{	
+{
 	double sendT = 0;
 	double dly = dlyFunc();
 
@@ -1531,27 +1535,14 @@ void Worker::papProcess()
 
 		} else{
 			tmr.restart();
-			// VLOG_EVERY_N(ln, 2) << "  send delta";
-			if (opt->mode.find("pasp1") !=std::string::npos ||
-				opt->mode.find("pasp5") !=std::string::npos){
-				sendDelta(bfDelta, curCnt);
-				VLOG_IF(iter<5 && (localID < 3), 1) << "iter " << iter << " CALT: " << curCalT 
-					<< "; unit dp " << curCnt << " : " << curCalT/curCnt  << " dly: " << dly
-					<< " sendT: " << sendT/curCnt;
-				bfDelta.clear();
-				curCnt = 0;
-			}
-			else {// if (opt->mode.find("pasp") !=std::string::npos)
-				vector<double> report;
-				report.push_back(cnt);
-				report.push_back(bufferDeltaExt.back());
-				report.push_back(curCalT/curCnt);
-				report.push_back(t_ws);
-				report.push_back(t_wdelta);
-				sendReport(report);
-			}
-			if (opt->mode.find("pasp2") !=std::string::npos)
-				model.accumulateParameter(bfDelta, factorDelta);
+			
+			vector<double> report;
+			report.push_back(cnt);
+			report.push_back(bufferDeltaExt.back());
+			report.push_back(curCalT/curCnt);
+			report.push_back(t_ws);
+			report.push_back(t_wdelta);
+			sendReport(report);
 
 			sendT += tmr.elapseSd();
 			stat.t_dlt_send += tmr.elapseSd();
@@ -1829,8 +1820,8 @@ void Worker::handleParameterProg(std::string& data, const RPCInfo & info)
 	stat.t_data_deserial += tmr.elapseSd();
 	/// adjust report size
 	if (opt->mode.find("pasp6") !=std::string::npos){
-		VLOG_IF(iter < 4, 1) << "glbBS: " << weights.back();
-		reportSize = weights.back()/4; /// update current param version
+		// VLOG_IF(iter < 4, 1) << "glbBS: " << weights.back();
+		reportSize = weights.back()/nWorker/4; /// update current param version
 		weights.pop_back();
 	}
 

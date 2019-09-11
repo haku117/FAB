@@ -126,15 +126,12 @@ public:
 	double dlyFunc();
 
 private:
-	size_t dataPointer;
-	size_t localBatchSize;
-	size_t reportSize;
+	size_t dataPointer, localBatchSize, reportSize;
 	int ln; // log-every-n times
 
 	int masterNID; // network id of master
 	IDMapper wm; // worker mapper
-	SyncUnit suOnline;
-	SyncUnit suXlength;
+	SyncUnit suOnline, suXlength;
 
 	int typeDDeltaAny, typeDDeltaAll;
 	//workerLst = {}; // ??
@@ -142,20 +139,17 @@ private:
 	double factorDelta;
 	size_t nx;
 	//iter = 0;
-	size_t nUpdate;
-	size_t lastArchIter;		
+	size_t nUpdate, lastArchIter;		
 	Timer tmrGlb; // for monitoring the delta ariving time
 	double curCalT;
 	int curCnt;
 	double forceCalT;
 	int mltDD;
-	size_t curHlvl;
-	size_t mylvl;
-	size_t dstgrpID;
+	size_t curHlvl, mylvl, dstgrpID;
 	double interval;
 
 	// processing info
-	double t_wdelta;
+	double t_wdelta, t_c;
 
 	// int interval;
 	// int delayWorkers;

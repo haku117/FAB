@@ -23,6 +23,7 @@ Master::Master() : Runner() {
 	staleStats = "";
 	objEsti = 0;
 	objImproEsti = 0.0;
+	bsAdjust = true;
 
 	suOnline.reset();
 	suWorker.reset();
@@ -956,12 +957,18 @@ void Master::handleDeltaProgAsync(const std::string & data, const RPCInfo & info
 
 		//// adjust global bs
 		if (opt->mode.find("pasp6") !=std::string::npos){
-			double minK = nWorker*(t_mdelta+t_mbrd - t_wdelta[nWorker]) /
-				(t_d[nWorker] + (t_wrpt[nWorker] - nWorker*t_mrpt)/100);
+			double t_davg = avg(t_d, nWorker);
+			double minK = nWorker*(nWorker*t_mdelta + t_mbrd - t_wdelta[nWorker]) /
+				(t_davg + (t_wrpt[nWorker] - nWorker*t_mrpt)/200);
 
-			if (bsAdjust and glbBatchSize > minK and glbBatchSize > 1000) {
+			VLOG_IF(nUpdate < 20, 1) << "pasp6 minK: " << minK << "; glb: " << glbBatchSize <<
+				t_mdelta << ", " << t_mbrd << ", " <<  t_wdelta[nWorker] << ", " << 
+				t_davg << ", " <<  t_wrpt[nWorker] << ", " << t_mrpt;
+			if (bsAdjust and glbBatchSize > minK and glbBatchSize > 800) {
 				glbBatchSize /= 2;
 			} else {
+				// if (glbBatchSize < minK)
+				// 	glbBatchSize = minK;
 				bsAdjust = false;
 			}
 			broadcastParameter(glbBatchSize);
@@ -977,12 +984,12 @@ void Master::handleDeltaProgAsync(const std::string & data, const RPCInfo & info
 		/// archive middle info
 		string states = std::to_string(getDeltaCnt) + ";" + std::to_string(objEsti) 
 			+ ";" + std::to_string(objImproEsti);
-		states += ";" + std::to_string(t_mdelta/n_mdelta)+"_"+std::to_string(t_mbrd)+"_"
+		states += ";" + std::to_string(t_mdelta/n_mdelta)+"_"+std::to_string(t_mbrd/nWorker)+"_"
 			+std::to_string(t_mrpt/n_mrpt);
 		for (int i = 0; i < nWorker+1; i++){
 			// states += ";" + std::to_string(deltaCount[i])+"_"+std::to_string(deltaObj[i])+"_"
 			// 		+std::to_string(deltaT[i]);
-			states += ";" + std::to_string(t_d[i])+"_"+std::to_string(t_wrpt[i])+"_"
+			states += ";" + std::to_string(avg(t_d, nWorker))+"_"+std::to_string(t_wrpt[i])+"_"
 					+std::to_string(t_wdelta[i])+"_"+std::to_string(obj_rpt[i]);
 		}
 		
@@ -1185,4 +1192,16 @@ void Master::waitParameter()
 {
 	suParam.wait();
 	suParam.reset();
+}
+
+double Master::avg(std::vector<double> arr, int n)
+{
+	double sum = 0;
+	int cnt = 0;
+	for (int i = 0; i < n; i++){
+		sum += arr[i];
+		if (arr[i] > 0.00000000001)
+			cnt++;
+	}
+	return sum/cnt;
 }
